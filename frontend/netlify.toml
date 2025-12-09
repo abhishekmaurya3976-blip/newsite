@@ -1,6 +1,8 @@
 [build]
-command = "cd frontend && npm run build"
-publish = "frontend/.next"
+  # explicit build command if you like:
+  command = "npm run build"
+  # leave publish = "" or omit publish for Next.js; Netlify handles routing for you.
 
-[[plugins]]
-package = "@netlify/plugin-nextjs"
+# Example to pin specific plugin version (not required)
+# [[plugins]]
+#   package = "@netlify/plugin-nextjs"
