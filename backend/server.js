@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const axios = require('axios'); // Add axios
 const path = require('path');
 require('dotenv').config();
 
@@ -75,6 +76,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Additional keep-alive endpoint
+app.get('/api/keep-alive', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Server is awake!',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // API Routes
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -104,7 +115,7 @@ app.use((error, req, res, next) => {
 
   if (error.code === 11000) {
     return res.status(400).json({
-      success: false,
+      success: true,
       message: 'Duplicate field value entered',
       field: Object.keys(error.keyPattern)[0]
     });
@@ -134,9 +145,73 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 API Base URL: http://localhost:${PORT}/api`);
   console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'https://artplazza.netlify.app'}`);
   console.log(`✅ Allowed CORS origins:`, allowedOrigins);
+  
+  // Start keep-alive function after server starts
+  startKeepAlive();
 });
 
+// Function to ping server and keep it awake (for Render free tier)
+function startKeepAlive() {
+  const url = process.env.RENDER_EXTERNAL_URL || `https://artweb-fmna.onrender.com` || `http://localhost:${PORT}`;
+  const interval = 14 * 60 * 1000; // 14 minutes (Render spins down after 15 mins)
+  
+  console.log(`🔄 Setting up keep-alive for: ${url}`);
+  console.log(`⏰ Interval: ${interval / 1000} seconds`);
+
+  // Initial ping
+  pingServer(url);
+
+  // Set up interval for pinging
+  const keepAliveInterval = setInterval(() => {
+    pingServer(url);
+  }, interval);
+  
+  // Also ping more frequently in development
+  if (process.env.NODE_ENV === 'development') {
+    setInterval(() => {
+      pingServer(`http://localhost:${PORT}`);
+    }, 60000); // Every minute in development
+  }
+
+  return keepAliveInterval;
+}
+
+// Function to ping the server
+function pingServer(url) {
+  const pingUrl = `${url}/api/keep-alive`;
+  
+  axios.get(pingUrl)
+    .then(response => {
+      console.log(`✅ Keep-alive ping successful at ${new Date().toLocaleTimeString()}`);
+      console.log(`   Status: ${response.data.message}`);
+    })
+    .catch(error => {
+      console.error(`❌ Keep-alive ping failed at ${new Date().toLocaleTimeString()}`);
+      if (error.response) {
+        console.error(`   Status: ${error.response.status}`);
+        console.error(`   Message: ${error.response.data?.message || 'No response data'}`);
+      } else if (error.request) {
+        console.error(`   No response received: ${error.message}`);
+      } else {
+        console.error(`   Request setup error: ${error.message}`);
+      }
+    });
+}
+
+// Handle unhandled rejections
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Rejection:', err);
   server.close(() => process.exit(1));
+});
+
+// Handle server shutdown
+process.on('SIGINT', () => {
+  console.log('👋 Shutting down server...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    mongoose.connection.close(false, () => {
+      console.log('✅ MongoDB connection closed');
+      process.exit(0);
+    });
+  });
 });
