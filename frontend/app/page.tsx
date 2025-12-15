@@ -1,25 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
   ArrowRight, 
-  Star, 
-  TrendingUp, 
-  Award, 
-  Zap,
-  ShoppingBag,
-  Package,
-  Tag,
   Crown,
   Sparkles,
   Trophy,
-  Clock,
   Shield,
   Truck,
-  ChevronRight,
-  Gift
+  ShoppingBag,
+  Package,
+  Zap,
+  Award
 } from 'lucide-react';
 import { categoryApi } from './lib/api/categories';
 import { productApi } from './lib/api/products';
@@ -28,634 +22,699 @@ import { Category } from '../types/category';
 import { Product } from '../types/product';
 import ProductCard from './components/shared/ProductCard';
 
+// Skeleton Components
+const SliderSkeleton = () => (
+  <div className="relative w-full aspect-[16/6] md:aspect-[21/8] lg:aspect-[24/8] bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse rounded-xl overflow-hidden">
+    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+  </div>
+);
+
+const CategoryCardSkeleton = () => (
+  <div className="group relative overflow-hidden rounded-2xl shadow-lg border border-gray-200">
+    <div className="relative h-64 md:h-80 lg:h-96 w-full bg-gradient-to-br from-gray-200 via-gray-300 to-gray-200 animate-pulse">
+      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+    </div>
+    <div className="absolute bottom-0 left-0 right-0 p-6">
+      <div className="h-8 w-3/4 bg-white/80 rounded-lg animate-pulse mb-3"></div>
+      <div className="h-4 w-1/2 bg-white/80 rounded-lg animate-pulse"></div>
+    </div>
+  </div>
+);
+
+const ProductCardSkeleton = () => (
+  <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse rounded-xl mb-4"></div>
+    <div className="h-4 bg-gray-200 rounded-lg animate-pulse mb-2"></div>
+    <div className="h-4 bg-gray-200 rounded-lg animate-pulse w-3/4 mb-3"></div>
+    <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg animate-pulse w-1/2"></div>
+  </div>
+);
+
+const TopBar = () => (
+  <div className="w-full bg-gradient-to-r from-gray-900 to-black text-white">
+    <div className="max-w-7xl mx-auto px-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between py-3 gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-4 md:gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Truck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span className="font-medium">Free Shipping over ₹499</span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2">
+            <Shield className="w-4 h-4 text-blue-400 flex-shrink-0" />
+            <span className="font-medium">100% Secure Checkout</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-400">24/7</span>
+            <span>Premium Support</span>
+          </div>
+        </div>
+        <div className="text-sm font-medium">
+          Premium Art Supplies Since 2024
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Premium Slider Component with Fade Animation
+const PremiumSlider = ({ 
+  images, 
+  current, 
+  onNext, 
+  onPrev, 
+  onGoTo,
+  isLoading 
+}: { 
+  images: SliderImage[];
+  current: number;
+  onNext: () => void;
+  onPrev: () => void;
+  onGoTo: (index: number) => void;
+  isLoading: boolean;
+}) => {
+  if (isLoading) {
+    return <SliderSkeleton />;
+  }
+
+  if (images.length === 0) {
+    return (
+      <div className="relative w-full aspect-[16/6] md:aspect-[21/8] lg:aspect-[24/8] bg-gradient-to-br from-gray-100 to-gray-200">
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div className="text-center max-w-2xl">
+            <Crown className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-6 text-gray-400" />
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-4">
+              Premium Art Supplies
+            </h2>
+            <p className="text-gray-600 text-lg md:text-xl mb-8">
+              Discover our exclusive collection of premium art materials
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/products"
+                className="inline-flex items-center justify-center bg-gray-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl group"
+              >
+                <ShoppingBag className="w-5 h-5 mr-3" />
+                Explore Collections
+                <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section className="relative w-full overflow-hidden">
+      <div className="relative w-full aspect-[16/6] md:aspect-[21/8] lg:aspect-[24/8]">
+        {images.map((image, index) => (
+          <div
+            key={image._id}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              index === current 
+                ? 'opacity-100 z-10' 
+                : 'opacity-0 z-0'
+            }`}
+          >
+            <div className="relative w-full h-full">
+              <Image
+                src={image.imageUrl}
+                alt={image.altText}
+                fill
+                className="object-cover"
+                priority={index === 0}
+                sizes="100vw"
+                quality={75}
+                loading={index === 0 ? "eager" : "lazy"}
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/20 to-transparent"></div>
+            </div>
+            
+            {/* Premium Content Overlay */}
+            <div className="absolute inset-0 flex items-center">
+              <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 w-full">
+                <div className="max-w-xl md:max-w-2xl">
+                  {image.title && (
+                    <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight drop-shadow-2xl animate-fadeIn">
+                      {image.title}
+                    </h1>
+                  )}
+                  
+                  {image.subtitle && (
+                    <p className="text-lg md:text-xl lg:text-2xl text-gray-100 mb-6 md:mb-8 max-w-lg leading-relaxed drop-shadow-lg animate-fadeIn delay-100">
+                      {image.subtitle}
+                    </p>
+                  )}
+                  
+                  {image.link && (
+                    <div className="flex flex-col sm:flex-row gap-4 animate-fadeIn delay-200">
+                      <Link 
+                        href={image.link}
+                        className="inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-white text-gray-900 rounded-xl hover:bg-gray-50 transition-all duration-300 font-bold text-base md:text-lg shadow-2xl hover:shadow-3xl group min-w-[180px] border border-gray-200"
+                      >
+                        <ShoppingBag className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
+                        Shop Now
+                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2 md:ml-3 group-hover:translate-x-2 transition-transform" />
+                      </Link>
+                      <Link 
+                        href="/categories"
+                        className="inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-transparent border-2 border-white text-white rounded-xl hover:bg-white/10 transition-all duration-300 font-bold text-base md:text-lg min-w-[180px]"
+                      >
+                        <Crown className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
+                        Collections
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Premium Navigation Buttons */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={onPrev}
+              className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-full p-3 md:p-4 hover:bg-white transition-all duration-300 z-20 group shadow-xl"
+              aria-label="Previous slide"
+            >
+              <ArrowRight className="w-5 h-5 md:w-6 md:h-6 text-gray-800 group-hover:scale-110 transition-transform rotate-180" />
+            </button>
+            <button
+              onClick={onNext}
+              className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-full p-3 md:p-4 hover:bg-white transition-all duration-300 z-20 group shadow-xl"
+              aria-label="Next slide"
+            >
+              <ArrowRight className="w-5 h-5 md:w-6 md:h-6 text-gray-800 group-hover:scale-110 transition-transform" />
+            </button>
+          </>
+        )}
+
+        {/* Premium Dots Indicator */}
+        {images.length > 1 && (
+          <div className="absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 md:space-x-3 z-20">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => onGoTo(index)}
+                className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all duration-500 ${
+                  index === current 
+                    ? 'bg-white scale-125 shadow-lg' 
+                    : 'bg-gray-400 hover:bg-gray-300'
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
 export default function HomePage() {
   const [sliderImages, setSliderImages] = useState<SliderImage[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [bestSellerProducts, setBestSellerProducts] = useState<Product[]>([]);
   const [newArrivalProducts, setNewArrivalProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState({
-    slider: true,
-    categories: true,
-    products: true
-  });
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Track loading states separately
+  const [isSliderLoaded, setIsSliderLoaded] = useState(false);
+  const [isCategoriesLoaded, setIsCategoriesLoaded] = useState(false);
+  const [isProductsLoaded, setIsProductsLoaded] = useState(false);
 
-  // Optimized fetch - fetch in parallel
-  const fetchAllData = async () => {
+  // Fetch data progressively
+  const fetchInitialData = useCallback(async () => {
     try {
-      setLoading({
-        slider: true,
-        categories: true,
-        products: true
-      });
-      setError(null);
+      // Step 1: Fetch slider images first
+      try {
+        const sliderResult = await sliderAPI.getSliderImages();
+        if (sliderResult.success && sliderResult.data) {
+          setSliderImages(sliderResult.data);
+        }
+      } catch (error) {
+        console.error('Failed to load slider:', error);
+      }
+      setIsSliderLoaded(true);
 
-      // Fetch all data in parallel
-      const [sliderResult, categoriesData, featuredData, bestSellerData, newArrivalData] = await Promise.allSettled([
-        sliderAPI.getSliderImages(),
-        categoryApi.getAll(),
-        productApi.getProducts({
-          limit: 4, // Reduced from 8 to 4 for initial load
-          isFeatured: true,
-          isActive: true,
-          sortBy: 'createdAt',
-          sortOrder: 'desc'
-        }),
-        productApi.getProducts({
-          limit: 4, // Reduced from 8 to 4 for initial load
-          isBestSeller: true,
-          isActive: true,
-          sortBy: 'sales',
-          sortOrder: 'desc'
-        }),
-        productApi.getProducts({
-          limit: 4, // Reduced from 8 to 4 for initial load
-          isActive: true,
-          sortBy: 'createdAt',
-          sortOrder: 'desc'
-        })
-      ]);
+      // Step 2: Fetch categories
+      try {
+        const categoriesData = await categoryApi.getAll();
+        setCategories(categoriesData.filter(cat => cat.isActive));
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      }
+      setIsCategoriesLoaded(true);
 
-      // Set slider images
-      if (sliderResult.status === 'fulfilled' && sliderResult.value.success && sliderResult.value.data) {
-        setSliderImages(sliderResult.value.data);
+      // Step 3: Fetch products in parallel
+      try {
+        const [featured, bestSeller, newArrival] = await Promise.all([
+          productApi.getProducts({ limit: 8, isFeatured: true, isActive: true }),
+          productApi.getProducts({ limit: 8, isBestSeller: true, isActive: true }),
+          productApi.getProducts({ limit: 8, isActive: true, sortBy: 'createdAt', sortOrder: 'desc' })
+        ]);
+        
+        // Set products directly from the API response
+        setFeaturedProducts(featured.products);
+        setBestSellerProducts(bestSeller.products);
+        setNewArrivalProducts(newArrival.products);
+      } catch (error) {
+        console.error('Failed to load products:', error);
       }
-
-      // Set categories
-      if (categoriesData.status === 'fulfilled') {
-        const activeCategories = categoriesData.value.filter(cat => cat.isActive);
-        setCategories(activeCategories);
-      }
-
-      // Set products
-      if (featuredData.status === 'fulfilled') {
-        setFeaturedProducts(featuredData.value.products);
-      }
-      if (bestSellerData.status === 'fulfilled') {
-        setBestSellerProducts(bestSellerData.value.products);
-      }
-      if (newArrivalData.status === 'fulfilled') {
-        setNewArrivalProducts(newArrivalData.value.products);
-      }
+      setIsProductsLoaded(true);
 
     } catch (error) {
-      console.error('Error fetching home page data:', error);
-      setError('Failed to load data. Please refresh the page.');
-    } finally {
-      setLoading({
-        slider: false,
-        categories: false,
-        products: false
-      });
+      console.error('Unexpected error:', error);
+      // Still mark as loaded to show content
+      setIsSliderLoaded(true);
+      setIsCategoriesLoaded(true);
+      setIsProductsLoaded(true);
     }
-  };
-
-  useEffect(() => {
-    fetchAllData();
   }, []);
 
-  // Auto slide every 5 seconds
   useEffect(() => {
-    if (sliderImages.length === 0) return;
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  // Handle slider auto-rotation
+  const [currentSlide, setCurrentSlide] = useState(0);
+  useEffect(() => {
+    if (sliderImages.length <= 1 || !isSliderLoaded) return;
     
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % sliderImages.length);
+      setCurrentSlide(prev => (prev + 1) % sliderImages.length);
     }, 5000);
-
+    
     return () => clearInterval(interval);
+  }, [sliderImages.length, isSliderLoaded]);
+
+  const nextSlide = useCallback(() => {
+    setCurrentSlide(prev => (prev + 1) % sliderImages.length);
   }, [sliderImages.length]);
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % sliderImages.length);
-  };
+  const prevSlide = useCallback(() => {
+    setCurrentSlide(prev => (prev - 1 + sliderImages.length) % sliderImages.length);
+  }, [sliderImages.length]);
 
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
-  };
-
-  const goToSlide = (index: number) => {
+  const goToSlide = useCallback((index: number) => {
     setCurrentSlide(index);
-  };
+  }, []);
 
-  // Get featured categories (top-level categories with no parent)
   const featuredCategories = categories
     .filter(cat => !cat.parentId)
     .slice(0, 6);
 
-  if (loading.slider || loading.categories || loading.products) {
-    return (
-      <main className="min-h-screen bg-white">
-        {/* Simple Loading State - Much Faster */}
-        <div className="flex flex-col items-center justify-center min-h-screen">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin"></div>
-          </div>
-          <div className="mt-6 text-center">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Art plazaa </h2>
-            <p className="text-gray-500">Loading premium experience...</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen">
-      {/* Premium Top Bar */}
-      <div className="w-full bg-gradient-to-r from-gray-900 to-black text-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between py-3 px-4">
-            <div className="flex items-center space-x-6 mb-2 md:mb-0">
-              <div className="flex items-center space-x-2">
-                <Truck className="w-5 h-5 text-emerald-400" />
-                <span className="text-sm font-medium">Free Shipping over ₹499</span>
-              </div>
-              <div className="hidden md:flex items-center space-x-2">
-                <Shield className="w-5 h-5 text-blue-400" />
-                <span className="text-sm font-medium">100% Secure Checkout</span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Clock className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm">24/7 Support</span>
-              </div>
-              <div className="h-4 w-px bg-white/20"></div>
-              <div className="text-sm">Premium Art Supplies Since 2024</div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <main className="min-h-screen bg-white">
+      {/* IMPORTANT: Add margin-top equal to your header height */}
+      <div className="mt-16 lg:mt-24">
+        <TopBar />
+        
+        {/* Premium Slider Section with Fade Animation */}
+        <PremiumSlider
+          images={sliderImages}
+          current={currentSlide}
+          onNext={nextSlide}
+          onPrev={prevSlide}
+          onGoTo={goToSlide}
+          isLoading={!isSliderLoaded}
+        />
 
-      {/* Premium Slider Section - FULL BRIGHT */}
-      <section className="w-full relative">
-        {sliderImages.length > 0 ? (
-          <div className="relative w-full aspect-[16/7] md:aspect-[21/8] lg:aspect-[24/8] overflow-hidden">
-            {sliderImages.map((image, index) => (
-              <div
-                key={image._id}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                  index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
-                }`}
-              >
-                <div className="relative w-full h-full">
-                  <Image
-                    src={image.imageUrl}
-                    alt={image.altText}
-                    fill
-                    className="object-cover"
-                    priority={index === 0}
-                    sizes="100vw"
-                    quality={85} // Optimized quality
-                    loading={index === 0 ? "eager" : "lazy"} // Lazy load other slides
-                  />
-                </div>
-                
-                {/* Premium Content */}
-                <div className="absolute inset-0 flex items-center">
-                  <div className="max-w-7xl mx-auto px-8 md:px-12 lg:px-16 w-full">
-                    <div className="max-w-2xl">
-                      
-                      {image.title && (
-                        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-gray-900 mb-6 font-serif leading-tight tracking-tight drop-shadow-lg">
-                          {image.title}
-                        </h1>
-                      )}
-                      
-                      {image.subtitle && (
-                        <p className="text-xl md:text-2xl text-gray-800 mb-8 max-w-xl leading-relaxed font-medium drop-shadow-lg">
-                          {image.subtitle}
-                        </p>
-                      )}
-                      
-                      {image.link && (
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <Link 
-                            href={image.link}
-                            className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-900 rounded-xl hover:bg-gray-50 transition-all duration-300 font-bold text-lg shadow-2xl hover:shadow-3xl group min-w-[200px] border border-gray-200"
-                          >
-                            <ShoppingBag className="w-6 h-6 mr-3" />
-                            Shop Now
-                            <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
-                          </Link>
-                          <Link 
-                            href="/categories"
-                            className="inline-flex items-center justify-center px-8 py-4 bg-gray-900 border-2 border-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all duration-300 font-bold text-lg min-w-[200px]"
-                          >
-                            <Crown className="w-6 h-6 mr-3" />
-                            Premium Collections
-                          </Link>
-                        </div>
-                      )}
-                    </div>
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 lg:py-16">
+          {/* Premium Categories Section */}
+          <section className="mb-12 md:mb-16 lg:mb-20">
+            <div className="text-center mb-8 md:mb-12">
+              <div className="inline-flex items-center justify-center mb-4 md:mb-6">
+                <div className="relative">
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center shadow-xl">
+                    <Crown className="w-6 h-6 md:w-8 md:h-8 text-white" />
                   </div>
+                  <Sparkles className="absolute -top-1 -right-1 md:-top-2 md:-right-2 w-4 h-4 md:w-6 md:h-6 text-yellow-400" />
+                </div>
+                <div className="ml-4 md:ml-6 text-left">
+                  <div className="flex items-center mb-1">
+                    <div className="w-12 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mr-3"></div>
+                    <span className="text-purple-600 font-bold text-xs md:text-sm uppercase tracking-wider">Collections</span>
+                  </div>
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
+                    Premium <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">Collections</span>
+                  </h2>
                 </div>
               </div>
-            ))}
+              <p className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto">
+                Explore our curated selection of premium art supplies and stationery collections
+              </p>
+            </div>
 
-            {/* Premium Navigation */}
-            {sliderImages.length > 1 && (
-              <>
-                <button
-                  onClick={prevSlide}
-                  className="absolute left-6 top-1/2 transform -translate-y-1/2 bg-white/80 border border-gray-300 rounded-full p-4 hover:bg-white transition-all duration-300 z-20 group shadow-xl"
-                  aria-label="Previous slide"
-                >
-                  <ArrowRight className="w-6 h-6 text-gray-800 group-hover:scale-110 transition-transform rotate-180" />
-                </button>
-                <button
-                  onClick={nextSlide}
-                  className="absolute right-6 top-1/2 transform -translate-y-1/2 bg-white/80 border border-gray-300 rounded-full p-4 hover:bg-white transition-all duration-300 z-20 group shadow-xl"
-                  aria-label="Next slide"
-                >
-                  <ArrowRight className="w-6 h-6 text-gray-800 group-hover:scale-110 transition-transform" />
-                </button>
-              </>
-            )}
-
-            {/* Premium Dots */}
-            {sliderImages.length > 1 && (
-              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3 z-20">
-                {sliderImages.map((_, index) => (
-                  <button
-                    key={`dot-${index}`}
-                    onClick={() => goToSlide(index)}
-                    className={`w-3 h-3 rounded-full transition-all duration-500 ${
-                      index === currentSlide 
-                        ? 'bg-gray-900 scale-125 shadow-lg' 
-                        : 'bg-gray-400 hover:bg-gray-600'
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
+            {!isCategoriesLoaded ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                {[...Array(2)].map((_, i) => (
+                  <CategoryCardSkeleton key={i} />
                 ))}
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="w-full aspect-[16/7] md:aspect-[21/8] lg:aspect-[24/8] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-            <div className="text-center p-8">
-              <Crown className="w-20 h-20 mx-auto mb-6 text-gray-400" />
-              <h2 className="text-4xl font-bold mb-4 text-gray-800">Premium Art Supplies</h2>
-              <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">
-                Discover our exclusive collection of premium art materials
-              </p>
-              <Link 
-                href="/products"
-                className="inline-flex items-center bg-gray-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-gray-800 transition-all group shadow-2xl"
-              >
-                <ShoppingBag className="w-6 h-6 mr-3" />
-                Explore Collections
-                <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
-              </Link>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Content Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 lg:py-20">
-        {/* Premium Categories Section - FULL BRIGHT LIKE SLIDER */}
-        <section className="mb-20 md:mb-24">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center justify-center mb-6">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center shadow-2xl">
-                  <Crown className="w-8 h-8 text-white" />
-                </div>
-                <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 animate-pulse" />
-              </div>
-              <div className="ml-6 text-left">
-                <div className="flex items-center">
-                  <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mr-4"></div>
-                  <span className="text-purple-600 font-semibold tracking-widest uppercase text-sm">Collections</span>
-                </div>
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mt-2">
-                  Premium <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">Collections</span>
-                </h2>
-              </div>
-            </div>
-            <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-              Explore our curated selection of premium art supplies and stationery collections
-            </p>
-          </div>
-
-          {featuredCategories.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-12">
-              {featuredCategories.map((category, index) => (
-                <div key={category._id} className="group relative">
-                  <Link 
-                    href={`/categories/${category.slug}`}
-                    className="block relative overflow-hidden rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-700 transform hover:-translate-y-1 border border-gray-200"
-                  >
-                    {/* EXTRA BIG Image Container - FULL BRIGHT */}
-                    <div className="relative h-[400px] md:h-[500px] lg:h-[600px] w-full overflow-hidden">
-                      {category.image ? (
-                        <Image
-                          src={typeof category.image === 'string' ? category.image : category.image.url || ''}
-                          alt={category.name}
-                          fill
-                          className="object-cover transition-transform duration-1000 group-hover:scale-110"
-                          sizes="(max-width: 1024px) 100vw, 50vw"
-                          priority={index < 2}
-                          quality={80} // Optimized quality
-                          loading={index < 2 ? "eager" : "lazy"} // Lazy load later images
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-                          <div className="text-center">
-                            <div className="text-9xl font-bold text-gray-300 mb-6">
-                              {category.name.charAt(0)}
+            ) : featuredCategories.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                {featuredCategories.map((category, index) => (
+                  <div key={category._id} className="group relative">
+                    <Link 
+                      href={`/categories/${category.slug}`}
+                      className="block relative overflow-hidden rounded-2xl md:rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 border border-gray-200"
+                    >
+                      <div className="relative h-64 md:h-80 lg:h-96 w-full overflow-hidden">
+                        {category.image ? (
+                          <Image
+                            src={typeof category.image === 'string' ? category.image : category.image.url || ''}
+                            alt={category.name}
+                            fill
+                            className="object-cover transition-transform duration-700 group-hover:scale-110"
+                            sizes="(max-width: 1024px) 100vw, 50vw"
+                            priority={index < 2}
+                            quality={75}
+                            loading={index < 2 ? "eager" : "lazy"}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+                            <div className="text-center">
+                              <div className="text-6xl md:text-8xl font-bold text-gray-300 mb-4">
+                                {category.name.charAt(0)}
+                              </div>
+                              <span className="text-gray-400">Premium Collection</span>
                             </div>
-                            <span className="text-gray-400 text-lg">Premium Collection</span>
                           </div>
-                        </div>
-                      )}
-                      
-                      {/* Simplified Shine Effect */}
-                      <div className="absolute inset-0 overflow-hidden">
-                        <div className="absolute -inset-full top-0 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:animate-shine"></div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                       </div>
-                    </div>
 
-                    {/* Content Overlay - NO BACKGROUND, text directly on image */}
-                    <div className="absolute bottom-0 left-0 right-0 p-10">
-                      <div className="flex items-center justify-between mb-6">
+                      {/* Content Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="text-xl md:text-2xl lg:text-3xl font-bold mb-3 text-white drop-shadow-lg">
+                              {category.name}
+                            </h3>
+                            
+                            {category.description && (
+                              <p className="text-gray-100 text-sm md:text-base mb-4 max-w-2xl drop-shadow-lg line-clamp-2">
+                                {category.description}
+                              </p>
+                            )}
+                          </div>
+                          <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex-shrink-0" />
+                        </div>
+                        
                         <div className="flex items-center">
-                          <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 mr-4 shadow-lg">
-                            <Package className="w-6 h-6 text-white" />
-                          </div>
-                          <span className="text-sm font-bold bg-white/90 text-gray-900 px-4 py-1.5 rounded-full shadow-lg">
-                            {category.children?.length || 0}+ Items
-                          </span>
-                        </div>
-                        <div className="opacity-0 group-hover:opacity-100 transform group-hover:translate-y-0 translate-y-4 transition-all duration-500">
-                          <Sparkles className="w-8 h-8 text-yellow-500 animate-pulse" />
-                        </div>
-                      </div>
-                      
-                      <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight text-gray-900 drop-shadow-lg">
-                        {category.name}
-                      </h3>
-                      
-                      {category.description && (
-                        <p className="text-gray-800 text-lg mb-8 leading-relaxed max-w-2xl drop-shadow-lg">
-                          {category.description}
-                        </p>
-                      )}
-                      
-                      <div className="flex items-center">
-                        <span className="text-xl font-semibold mr-4 text-gray-900 drop-shadow-lg">Explore Collection</span>
-                        <div className="relative">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center group-hover:from-purple-700 group-hover:to-pink-700 transition-all duration-300 shadow-lg">
-                            <ArrowRight className="w-6 h-6 text-white transform group-hover:translate-x-2 transition-transform duration-300" />
+                          <span className="text-sm md:text-base font-semibold mr-3 text-white drop-shadow-lg">Explore Collection</span>
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center group-hover:from-purple-700 group-hover:to-pink-700 transition-all duration-300 shadow-lg">
+                            <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white transform group-hover:translate-x-1 transition-transform duration-300" />
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Floating Badge */}
-                    <div className="absolute top-8 left-8">
-                      <div className="relative">
-                        <div className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-2xl shadow-2xl">
+                      {/* Premium Badge */}
+                      <div className="absolute top-4 left-4">
+                        <div className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-bold rounded-lg shadow-xl">
                           <div className="flex items-center">
-                            <Crown className="w-4 h-4 mr-2" />
+                            <Crown className="w-3 h-3 mr-1.5" />
                             Premium
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 md:py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-300">
+                <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full"></div>
+                  <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                    <Package className="w-8 h-8 md:w-10 md:h-10 text-gray-300" />
+                  </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-24 bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl border-2 border-dashed border-gray-200">
-              <div className="relative w-32 h-32 mx-auto mb-8">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
-                <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
-                  <Package className="w-16 h-16 text-gray-300" />
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">Premium Collections Coming Soon</h3>
+                <p className="text-gray-600 max-w-md mx-auto">
+                  We're curating amazing art supplies collections for you
+                </p>
+              </div>
+            )}
+          </section>
+
+          {/* Featured Products */}
+          <section className="mb-12 md:mb-16 lg:mb-20">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
+              <div className="mb-4 sm:mb-0">
+                <div className="flex items-center mb-2">
+                  <div className="w-8 h-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full mr-3"></div>
+                  <span className="text-amber-600 font-bold text-xs md:text-sm uppercase tracking-wider">Featured</span>
                 </div>
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
+                  Featured <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">Products</span>
+                </h2>
+                <p className="text-gray-600 mt-1">Handpicked premium selections</p>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Premium Collections Coming Soon</h3>
-              <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-                We're curating amazing art supplies collections for you
-              </p>
-            </div>
-          )}
-
-          {/* View All Button */}
-          {featuredCategories.length > 0 && (
-            <div className="text-center mt-16">
-              <Link 
-                href="/categories"
-                className="inline-flex items-center bg-gradient-to-r from-gray-900 to-black text-white px-10 py-5 rounded-2xl hover:from-gray-800 hover:to-gray-900 transition-all duration-300 font-bold text-lg shadow-2xl hover:shadow-3xl group"
-              >
-                <Crown className="w-6 h-6 mr-4" />
-                Explore All Collections
-                <ArrowRight className="w-6 h-6 ml-4 group-hover:translate-x-3 transition-transform duration-300" />
-              </Link>
-            </div>
-          )}
-        </section>
-
-        {/* Featured Products - Premium Style */}
-        <section className="mb-20 md:mb-24">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full mr-6"></div>
-                <span className="text-amber-600 font-bold tracking-widest text-sm uppercase">Featured</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
-                Featured <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">Products</span>
-              </h2>
-              <p className="text-gray-600 text-lg mt-2">Handpicked premium selections</p>
-            </div>
-            <Link 
-              href="/products?isFeatured=true" 
-              className="inline-flex items-center bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 px-8 py-4 rounded-xl font-semibold text-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl group border border-gray-200"
-            >
-              View All
-              <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
-            </Link>
-          </div>
-
-          {featuredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {featuredProducts.slice(0, 4).map((product) => (
-                <div key={product._id} className="transform hover:-translate-y-2 transition-transform duration-300">
-                  <ProductCard product={product} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-gradient-to-br from-amber-50 to-orange-50 rounded-3xl border-2 border-dashed border-amber-200">
-              <Award className="w-20 h-20 text-amber-300 mx-auto mb-6" />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Featured Products Coming Soon</h3>
-              <p className="text-gray-600">Our premium selections are being curated</p>
-            </div>
-          )}
-        </section>
-
-        {/* Best Sellers - Same Style as Featured */}
-        <section className="mb-20 md:mb-24">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-full mr-6"></div>
-                <span className="text-red-600 font-bold tracking-widest text-sm uppercase">Bestsellers</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
-                Best <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-500">Sellers</span>
-              </h2>
-              <p className="text-gray-600 text-lg mt-2">Most loved by our customers</p>
-            </div>
-            <Link 
-              href="/products?isBestSeller=true" 
-              className="inline-flex items-center bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 px-8 py-4 rounded-xl font-semibold text-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl group border border-gray-200"
-            >
-              View All
-              <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
-            </Link>
-          </div>
-
-          {bestSellerProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {bestSellerProducts.slice(0, 4).map((product) => (
-                <div key={product._id} className="transform hover:-translate-y-2 transition-transform duration-300">
-                  <ProductCard product={product} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-gradient-to-br from-red-50 to-pink-50 rounded-3xl border-2 border-dashed border-red-200">
-              <Trophy className="w-20 h-20 text-red-300 mx-auto mb-6" />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Best Sellers Coming Soon</h3>
-              <p className="text-gray-600">Discover what everyone loves</p>
-            </div>
-          )}
-        </section>
-
-        {/* New Arrivals - Same Style as Featured */}
-        <section className="mb-20 md:mb-24">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full mr-6"></div>
-                <span className="text-blue-600 font-bold tracking-widest text-sm uppercase">New Arrivals</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
-                New <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-cyan-500">Arrivals</span>
-              </h2>
-              <p className="text-gray-600 text-lg mt-2">Fresh additions to our collection</p>
-            </div>
-            <Link 
-              href="/products?sort=newest" 
-              className="inline-flex items-center bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 px-8 py-4 rounded-xl font-semibold text-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl group border border-gray-200"
-            >
-              View All
-              <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-2 transition-transform" />
-            </Link>
-          </div>
-
-          {newArrivalProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {newArrivalProducts.slice(0, 4).map((product) => (
-                <div key={product._id} className="transform hover:-translate-y-2 transition-transform duration-300">
-                  <ProductCard product={product} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-3xl border-2 border-dashed border-blue-200">
-              <Zap className="w-20 h-20 text-blue-300 mx-auto mb-6" />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">New Arrivals Coming Soon</h3>
-              <p className="text-gray-600">Stay tuned for exciting new products</p>
-            </div>
-          )}
-        </section>
-
-        {/* Premium Features Grid */}
-        <section className="mb-20">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 border border-gray-200 hover:border-purple-300 transition-all duration-300 hover:shadow-2xl">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mb-6">
-                <Truck className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Free Shipping</h3>
-              <p className="text-gray-600">Free delivery on orders above ₹499</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:shadow-2xl">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center mb-6">
-                <Shield className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Secure Checkout</h3>
-              <p className="text-gray-600">100% secure payment processing</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 border border-gray-200 hover:border-green-300 transition-all duration-300 hover:shadow-2xl">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center mb-6">
-                <Clock className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">24/7 Support</h3>
-              <p className="text-gray-600">Always here to help you</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 border border-gray-200 hover:border-yellow-300 transition-all duration-300 hover:shadow-2xl">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center mb-6">
-                <Award className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Premium Quality</h3>
-              <p className="text-gray-600">Curated from top brands worldwide</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Premium CTA */}
-        <section>
-          <div className="relative rounded-3xl overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black"></div>
-            <div className="relative z-10 p-12 md:p-16 text-center">
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                Ready to Create Your Masterpiece?
-              </h2>
-              <p className="text-gray-300 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
-                Join thousands of artists who trust Art plazaa  for their premium art supplies.
-                Elevate your creativity with our curated collections.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {isProductsLoaded && featuredProducts.length > 0 && (
                 <Link 
-                  href="/products"
-                  className="inline-flex items-center justify-center px-10 py-5 bg-white text-gray-900 font-bold rounded-2xl hover:bg-gray-50 transition-all duration-300 shadow-2xl hover:shadow-3xl text-lg group"
+                  href="/products?isFeatured=true" 
+                  className="inline-flex items-center bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 px-5 md:px-6 py-3 rounded-xl font-semibold text-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl group border border-gray-200"
                 >
-                  <ShoppingBag className="w-6 h-6 mr-4" />
-                  Shop All Products
-                  <ArrowRight className="w-5 h-5 ml-4 group-hover:translate-x-3 transition-transform" />
+                  View All
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link 
-                  href="/categories"
-                  className="inline-flex items-center justify-center px-10 py-5 bg-transparent border-2 border-white text-white font-bold rounded-2xl hover:bg-white/10 transition-all duration-300 text-lg"
-                >
-                  <Crown className="w-6 h-6 mr-4" />
-                  Premium Collections
-                </Link>
-              </div>
+              )}
             </div>
-          </div>
-        </section>
+
+            {!isProductsLoaded ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : featuredProducts.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {featuredProducts.slice(0, 4).map((product) => (
+                  <div key={product._id} className="transform hover:-translate-y-1 transition-transform duration-300">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border-2 border-dashed border-amber-200">
+                <Award className="w-12 h-12 md:w-16 md:h-16 text-amber-300 mx-auto mb-4" />
+                <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Featured Products Coming Soon</h3>
+                <p className="text-gray-600">Our premium selections are being curated</p>
+              </div>
+            )}
+          </section>
+
+          {/* Best Sellers */}
+          <section className="mb-12 md:mb-16 lg:mb-20">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
+              <div className="mb-4 sm:mb-0">
+                <div className="flex items-center mb-2">
+                  <div className="w-8 h-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-full mr-3"></div>
+                  <span className="text-red-600 font-bold text-xs md:text-sm uppercase tracking-wider">Bestsellers</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
+                  Best <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-500">Sellers</span>
+                </h2>
+                <p className="text-gray-600 mt-1">Most loved by our customers</p>
+              </div>
+              {isProductsLoaded && bestSellerProducts.length > 0 && (
+                <Link 
+                  href="/products?isBestSeller=true" 
+                  className="inline-flex items-center bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 px-5 md:px-6 py-3 rounded-xl font-semibold text-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl group border border-gray-200"
+                >
+                  View All
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              )}
+            </div>
+
+            {!isProductsLoaded ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : bestSellerProducts.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {bestSellerProducts.slice(0, 4).map((product) => (
+                  <div key={product._id} className="transform hover:-translate-y-1 transition-transform duration-300">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gradient-to-br from-red-50 to-pink-50 rounded-2xl border-2 border-dashed border-red-200">
+                <Trophy className="w-12 h-12 md:w-16 md:h-16 text-red-300 mx-auto mb-4" />
+                <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Best Sellers Coming Soon</h3>
+                <p className="text-gray-600">Discover what everyone loves</p>
+              </div>
+            )}
+          </section>
+
+          {/* New Arrivals */}
+          <section className="mb-12 md:mb-16 lg:mb-20">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
+              <div className="mb-4 sm:mb-0">
+                <div className="flex items-center mb-2">
+                  <div className="w-8 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full mr-3"></div>
+                  <span className="text-blue-600 font-bold text-xs md:text-sm uppercase tracking-wider">New Arrivals</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
+                  New <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-cyan-500">Arrivals</span>
+                </h2>
+                <p className="text-gray-600 mt-1">Fresh additions to our collection</p>
+              </div>
+              {isProductsLoaded && newArrivalProducts.length > 0 && (
+                <Link 
+                  href="/products?sort=newest" 
+                  className="inline-flex items-center bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 px-5 md:px-6 py-3 rounded-xl font-semibold text-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl group border border-gray-200"
+                >
+                  View All
+                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              )}
+            </div>
+
+            {!isProductsLoaded ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : newArrivalProducts.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {newArrivalProducts.slice(0, 4).map((product) => (
+                  <div key={product._id} className="transform hover:-translate-y-1 transition-transform duration-300">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border-2 border-dashed border-blue-200">
+                <Zap className="w-12 h-12 md:w-16 md:h-16 text-blue-300 mx-auto mb-4" />
+                <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">New Arrivals Coming Soon</h3>
+                <p className="text-gray-600">Stay tuned for exciting new products</p>
+              </div>
+            )}
+          </section>
+
+          {/* Premium Features */}
+          {(isCategoriesLoaded || isProductsLoaded) && (
+            <section className="mb-12 md:mb-16">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 hover:border-purple-300 transition-all duration-300 hover:shadow-xl">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mb-4">
+                    <Truck className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Free Shipping</h3>
+                  <p className="text-gray-600 text-sm">Free delivery on orders above ₹499</p>
+                </div>
+                
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 hover:border-blue-300 transition-all duration-300 hover:shadow-xl">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center mb-4">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Secure Checkout</h3>
+                  <p className="text-gray-600 text-sm">100% secure payment processing</p>
+                </div>
+                
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 hover:border-green-300 transition-all duration-300 hover:shadow-xl">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center mb-4">
+                    <span className="text-white text-lg font-bold">24/7</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Premium Support</h3>
+                  <p className="text-gray-600 text-sm">Always here to help you</p>
+                </div>
+                
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 hover:border-yellow-300 transition-all duration-300 hover:shadow-xl">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center mb-4">
+                    <Crown className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Premium Quality</h3>
+                  <p className="text-gray-600 text-sm">Curated from top brands worldwide</p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Premium CTA */}
+          {(isCategoriesLoaded || isProductsLoaded) && (
+            <section>
+              <div className="relative rounded-2xl md:rounded-3xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black"></div>
+                <div className="relative z-10 p-8 md:p-12 text-center">
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 md:mb-6">
+                    Ready to Create Your Masterpiece?
+                  </h2>
+                  <p className="text-gray-300 text-base md:text-lg mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed">
+                    Join thousands of artists who trust Art Plaza for their premium art supplies.
+                    Elevate your creativity with our curated collections.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Link 
+                      href="/products"
+                      className="inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-xl hover:shadow-2xl text-base md:text-lg group"
+                    >
+                      <ShoppingBag className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
+                      Shop All Products
+                      <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2 md:ml-3 group-hover:translate-x-2 transition-transform" />
+                    </Link>
+                    <Link 
+                      href="/categories"
+                      className="inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white/10 transition-all duration-300 text-base md:text-lg"
+                    >
+                      <Crown className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
+                      Premium Collections
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
       </div>
 
-      {/* Add animations in global CSS */}
+      {/* Add custom animations */}
       <style jsx global>{`
-        @keyframes shine {
-          0% { transform: translateX(-100%) rotate(45deg); }
-          100% { transform: translateX(100%) rotate(45deg); }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
         }
-        .animate-shine {
-          animation: shine 2s ease-in-out infinite;
+        
+        @keyframes fadeIn {
+          from { 
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to { 
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.8s ease-out forwards;
+        }
+        
+        .delay-100 {
+          animation-delay: 0.1s;
+        }
+        
+        .delay-200 {
+          animation-delay: 0.2s;
+        }
+        
+        .delay-300 {
+          animation-delay: 0.3s;
         }
       `}</style>
     </main>
