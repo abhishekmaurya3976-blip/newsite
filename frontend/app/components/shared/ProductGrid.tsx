@@ -4,7 +4,7 @@ import { Product } from '../../../types/product';
 import ProductCard from './ProductCard';
 
 interface ProductGridProps {
-  products: Product[];
+  products?: Product[]; // Make products optional
   title?: string;
   subtitle?: string;
   emptyMessage?: string;
@@ -12,7 +12,7 @@ interface ProductGridProps {
 }
 
 export default function ProductGrid({ 
-  products, 
+  products = [], // Default to empty array
   title, 
   subtitle, 
   emptyMessage = "No products found",

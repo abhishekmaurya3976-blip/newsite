@@ -16,7 +16,9 @@ import CategoryCard from '../../components/shared/CategoryCard';
 import ProductGrid from '../../components/shared/ProductGrid';
 import SortSelect from '../../components/shared/SortSelect';
 import { Suspense } from 'react';
-import { Category } from '../../../types/category';
+
+// Cache duration for revalidation (in seconds)
+export const revalidate = 3600; // Revalidate every hour
 
 interface CategoryPageProps {
   params: Promise<{
@@ -29,16 +31,77 @@ interface CategoryPageProps {
   }>;
 }
 
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const category = await categoryApi.getBySlug(slug);
-  
-  return {
-    title: `${category?.name || 'Premium Collection'} | Art Plaza`,
-    description: category?.description || `Explore premium ${category?.name || 'art supplies'} collection`,
-  };
+// Optimized data fetching with caching
+async function getCategoryData(slug: string) {
+  try {
+    const category = await categoryApi.getBySlug(slug);
+    if (!category || !category.isActive) {
+      return null;
+    }
+    
+    // Fetch all categories in parallel with the main category
+    const allCategoriesPromise = categoryApi.getAll();
+    
+    return {
+      category,
+      allCategories: await allCategoriesPromise,
+    };
+  } catch (error) {
+    console.error('Error fetching category data:', error);
+    return null;
+  }
 }
 
+async function getProductsData(categoryId: string, page: number, sortBy: string, searchQuery: string) {
+  try {
+    const productsData = await productApi.getProducts({
+      page,
+      limit: 12,
+      categoryId,
+      isActive: true,
+      sortBy: sortBy === 'price-desc' ? 'price' : sortBy,
+      sortOrder: sortBy.includes('desc') ? 'desc' : 'asc',
+      search: searchQuery,
+    });
+    
+    return productsData;
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return { products: [], total: 0, totalPages: 0 };
+  }
+}
+
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  
+  try {
+    const data = await getCategoryData(slug);
+    
+    if (!data) {
+      return {
+        title: 'Category Not Found | Art Plaza',
+        description: 'The requested category could not be found',
+      };
+    }
+    
+    return {
+      title: `${data.category.name} | Premium Collection | Art Plaza`,
+      description: data.category.description || `Explore premium ${data.category.name} collection at Art Plaza`,
+      openGraph: {
+        title: `${data.category.name} | Art Plaza`,
+        description: data.category.description || `Explore our ${data.category.name} collection`,
+        type: 'website',
+      },
+    };
+  } catch (error) {
+    return {
+      title: 'Category | Art Plaza',
+      description: 'Explore premium art supplies and stationery collections',
+    };
+  }
+}
+
+// ProductsContent component - optimized
 async function ProductsContent({ 
   slug, 
   page, 
@@ -52,10 +115,9 @@ async function ProductsContent({
   searchQuery: string;
   categoryName: string;
 }) {
-  const category = await categoryApi.getBySlug(slug);
+  const categoryData = await getCategoryData(slug);
   
-  // Fix: Add null check for category
-  if (!category) {
+  if (!categoryData) {
     return (
       <div className="text-center py-12 md:py-16">
         <div className="relative w-20 h-20 md:w-24 md:h-24 mx-auto mb-6">
@@ -71,15 +133,7 @@ async function ProductsContent({
     );
   }
 
-  const productsData = await productApi.getProducts({
-    page,
-    limit: 12,
-    categoryId: category._id,
-    isActive: true,
-    sortBy: sortBy === 'price-desc' ? 'price' : sortBy,
-    sortOrder: sortBy.includes('desc') ? 'desc' : 'asc',
-    search: searchQuery,
-  }).catch(() => ({ products: [], total: 0, totalPages: 0 }));
+  const productsData = await getProductsData(categoryData.category._id, page, sortBy, searchQuery);
 
   if (productsData.products.length === 0) {
     return (
@@ -123,7 +177,6 @@ async function ProductsContent({
       <ProductGrid 
         products={productsData.products} 
         loading={false}
-        variant="horizontal-mobile"
       />
       
       {/* Pagination */}
@@ -185,9 +238,12 @@ async function ProductsContent({
   );
 }
 
-async function SubcategoriesContent({ categoryId }: { categoryId: string }) {
-  const categories = await categoryApi.getAll().catch(() => []);
-  const subcategories = categories.filter(cat => 
+// Subcategories component
+async function SubcategoriesContent({ categoryId, allCategories }: { 
+  categoryId: string;
+  allCategories: any[];
+}) {
+  const subcategories = allCategories.filter(cat => 
     cat.isActive && cat.parentId === categoryId
   );
 
@@ -209,7 +265,6 @@ async function SubcategoriesContent({ categoryId }: { categoryId: string }) {
         </div>
       </div>
       
-      {/* Subcategories Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
         {subcategories.map((subcategory, index) => (
           <CategoryCard 
@@ -223,17 +278,19 @@ async function SubcategoriesContent({ categoryId }: { categoryId: string }) {
   );
 }
 
+// Related categories component
 async function RelatedCategoriesContent({ 
   categoryId, 
-  parentId 
+  parentId,
+  allCategories 
 }: { 
   categoryId: string; 
-  parentId?: string | null; // Fix: Allow null
+  parentId?: string | null;
+  allCategories: any[];
 }) {
   if (!parentId) return null;
   
-  const categories = await categoryApi.getAll().catch(() => []);
-  const siblingCategories = categories.filter(cat => 
+  const siblingCategories = allCategories.filter(cat => 
     cat.isActive && cat.parentId === parentId && cat._id !== categoryId
   );
 
@@ -269,26 +326,25 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const { slug } = await params;
   const resolvedSearchParams = await searchParams;
   
-  // Fetch only essential category data first
-  const category = await categoryApi.getBySlug(slug);
+  // Fetch all initial data in parallel
+  const categoryData = await getCategoryData(slug);
   
-  if (!category || !category.isActive) {
+  if (!categoryData) {
     notFound();
   }
+
+  const { category, allCategories } = categoryData;
+  const parentCategory = category.parentId 
+    ? allCategories.find(cat => cat._id === category.parentId)
+    : null;
 
   const page = parseInt(resolvedSearchParams.page || '1');
   const sortBy = resolvedSearchParams.sort || 'createdAt';
   const searchQuery = resolvedSearchParams.search || '';
 
-  // Get parent category data
-  const categories = await categoryApi.getAll().catch(() => []);
-  const parentCategory = category.parentId 
-    ? categories.find(cat => cat._id === category.parentId)
-    : null;
-
   return (
     <main className="min-h-screen bg-white">
-      {/* 1. HEADER - Shows immediately */}
+      {/* 1. HEADER */}
       <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-blue-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-24 pb-8 md:pb-12">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -311,7 +367,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
               </div>
             </div>
             
-            {/* Product Count */}
+            {/* Product Count - Will be updated by ProductsContent */}
             <div className="bg-gradient-to-r from-gray-900 to-black text-white px-4 py-3 rounded-xl shadow-lg">
               <div className="text-center">
                 <div className="text-xl md:text-2xl font-bold">-</div>
@@ -322,7 +378,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         </div>
       </div>
 
-      {/* 2. BREADCRUMB - Shows immediately */}
+      {/* 2. BREADCRUMB */}
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <nav className="flex items-center text-sm text-gray-600 overflow-x-auto">
@@ -355,19 +411,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
       {/* 3. MAIN CONTENT */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Subcategories - Load progressively */}
-        <Suspense fallback={
-          <div className="mb-12 md:mb-16">
-            <div className="h-8 w-48 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse rounded-lg mb-6"></div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="aspect-square bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse rounded-xl"></div>
-              ))}
-            </div>
-          </div>
-        }>
-          <SubcategoriesContent categoryId={category._id} />
-        </Suspense>
+        {/* Subcategories - Preloaded data */}
+        <SubcategoriesContent 
+          categoryId={category._id} 
+          allCategories={allCategories}
+        />
 
         {/* 4. PRODUCTS SECTION */}
         <section className="mb-12 md:mb-16">
@@ -411,9 +459,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           </div>
 
           {/* PRODUCTS DISPLAY - With Suspense */}
-          <Suspense fallback={
-            <ProductGrid loading={true} variant="horizontal-mobile" />
-          }>
+          <Suspense fallback={<ProductGrid loading={true} />}>
             <ProductsContent 
               slug={slug}
               page={page}
@@ -424,22 +470,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           </Suspense>
         </section>
 
-        {/* 5. RELATED CATEGORIES - Load progressively */}
-        <Suspense fallback={
-          <div className="mb-12 md:mb-16">
-            <div className="h-8 w-48 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse rounded-lg mb-6"></div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="aspect-square bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse rounded-xl"></div>
-              ))}
-            </div>
-          </div>
-        }>
-          <RelatedCategoriesContent 
-            categoryId={category._id}
-            parentId={category.parentId} // This can be null or undefined
-          />
-        </Suspense>
+        {/* 5. RELATED CATEGORIES */}
+        <RelatedCategoriesContent 
+          categoryId={category._id}
+          parentId={category.parentId}
+          allCategories={allCategories}
+        />
 
         {/* 6. PREMIUM CTA */}
         <section>
