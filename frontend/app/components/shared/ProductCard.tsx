@@ -1,10 +1,13 @@
+// app/components/shared/ProductCard.tsx
 'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useRef } from 'react';
-import { Star, Heart, ShoppingBag, Sparkles, Award } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Star, Heart, ShoppingBag, Sparkles, Award, Check } from 'lucide-react';
 import { Product } from '../../../types/product';
+import { useCart } from '../../contexts/CartContext';
+import { useWishlist } from '../../contexts/WishlistContext';
 
 interface ProductCardProps {
   product: Product;
@@ -13,15 +16,26 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, priority = false }: ProductCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [wishlist, setWishlist] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
+  const [showWishlist, setShowWishlist] = useState(true);
   const cardRef = useRef<HTMLDivElement>(null);
+  const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   
   const primaryImage = product.images?.find(img => img.isPrimary) || product.images?.[0];
   const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
   const discountPercent = hasDiscount 
     ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)
     : 33;
+
+  // Sync wishlist state
+  useEffect(() => {
+    if (product._id) {
+      setIsWishlisted(isInWishlist(product._id));
+    }
+  }, [product._id, isInWishlist]);
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -64,6 +78,34 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
     setTimeout(() => {
       window.location.href = `/products/${product.slug}`;
     }, 300);
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    addToCart(product, 1);
+    setIsAdded(true);
+    
+    // Reset animation after 2 seconds
+    setTimeout(() => {
+      setIsAdded(false);
+    }, 2000);
+  };
+
+  const handleWishlistToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!product._id) return;
+    
+    if (isWishlisted) {
+      removeFromWishlist(product._id);
+      setIsWishlisted(false);
+    } else {
+      addToWishlist(product);
+      setIsWishlisted(true);
+    }
   };
 
   return (
@@ -125,16 +167,18 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           )}
         </div>
 
-        {/* Wishlist Button */}
+        {/* Wishlist Button - ALWAYS VISIBLE */}
         <button 
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setWishlist(!wishlist);
-          }}
-          className="absolute top-2 right-2 p-1.5 md:p-2.5 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-300 opacity-0 group-hover:opacity-100 transform group-hover:translate-y-0 translate-y-1 z-10"
+          onClick={handleWishlistToggle}
+          onMouseEnter={() => setShowWishlist(true)}
+          onMouseLeave={() => setShowWishlist(true)}
+          className="absolute top-2 right-2 p-1.5 md:p-2.5 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-300 z-10 hover:scale-110 active:scale-95"
         >
-          <Heart className={`w-3 h-3 md:w-4 md:h-4 ${wishlist ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
+          <Heart className={`w-3 h-3 md:w-4 md:h-4 transition-all duration-300 ${
+            isWishlisted 
+              ? 'text-rose-500 fill-rose-500 scale-110' 
+              : 'text-gray-600 hover:text-rose-400'
+          }`} />
         </button>
       </div>
 
@@ -183,14 +227,20 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           </div>
 
           <button 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              // Add to cart logic
-            }}
-            className="px-2 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-md hover:shadow-lg whitespace-nowrap"
+            onClick={handleAddToCart}
+            disabled={product.stock === 0}
+            className={`px-2 py-1.5 md:px-4 md:py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-md hover:shadow-lg whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center ${
+              isAdded ? 'bg-green-500 hover:bg-green-600' : ''
+            }`}
           >
-            Add to Cart
+            {isAdded ? (
+              <>
+                <Check className="w-3 h-3 md:w-4 md:h-4 mr-1 animate-bounce" />
+                Added!
+              </>
+            ) : (
+              product.stock === 0 ? 'Out of Stock' : 'Add to Cart'
+            )}
           </button>
         </div>
 

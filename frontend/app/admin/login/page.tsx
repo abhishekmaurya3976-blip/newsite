@@ -62,7 +62,7 @@ export default function AdminLogin() {
             Admin Login
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Access the Art plazaa  admin panel
+            Access the Art plazaa a  admin panel
           </p>
         </div>
 

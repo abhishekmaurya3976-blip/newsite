@@ -12,7 +12,7 @@ import CategoryCard from '../components/shared/CategoryCard';
 import { Suspense } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Premium Collections | Art Plaza',
+  title: 'Premium Collections | Art plazaa ',
   description: 'Browse our premium collections of art supplies, stationery, and creative materials',
 };
 

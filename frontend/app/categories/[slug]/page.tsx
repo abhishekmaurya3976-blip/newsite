@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const category = await categoryApi.getBySlug(slug);
   
   return {
-    title: `${category?.name || 'Premium Collection'} | Art Plaza`,
+    title: `${category?.name || 'Premium Collection'} | Art plazaa `,
     description: category?.description || `Explore premium ${category?.name || 'art supplies'} collection`,
   };
 }

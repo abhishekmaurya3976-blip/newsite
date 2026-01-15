@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
+import { useWishlist } from '../../contexts/WishlistContext';
 import {
   Search,
   User,
@@ -46,6 +48,8 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { totalItems } = useCart();
+  const { wishlist } = useWishlist();
   
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -121,12 +125,11 @@ export default function Header() {
                   href="/" 
                   className="flex items-center space-x-5 group transition-all duration-300 hover:scale-[1.02]"
                 >
-                  {/* Professional Logo Container */}
                   <div className="relative">
                     <div className="w-18 h-18 2xl:w-24 2xl:h-19 rounded-2xl overflow-hidden bg-white shadow-xl border-2 border-amber-100 group-hover:border-amber-200 transition-all duration-300">
                       <img 
                         src="/logo.jpg" 
-                        alt="Art Plaza - Premium Stationery"
+                        alt="Art plazaa  - Premium Stationery"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -144,16 +147,13 @@ export default function Header() {
                         }}
                       />
                     </div>
-                    {/* Accent dot */}
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-yellow-400 to-amber-400 rounded-full border-2 border-white shadow-lg" />
-                    {/* Glow effect */}
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
                   
-                  {/* Brand Name with Professional Font */}
                   <div className="flex flex-col space-y-1">
                     <span className="text-3xl 2xl:text-4xl font-bold text-gray-900 tracking-tight font-playfair">
-                      Art Plaza
+                      Art Plazza
                     </span>
                     <span className="text-xs text-amber-600 font-medium tracking-[0.3em] uppercase">
                       Premium Stationery
@@ -193,27 +193,31 @@ export default function Header() {
               <div className="flex items-center space-x-4 2xl:space-x-6">
                 {/* Wishlist */}
                 <Link 
-                  href="/wishlist" 
+                  href="/user/wishlist" 
                   className="relative group"
                 >
                   <div className="p-2.5 rounded-xl hover:bg-rose-50/50 transition-all duration-300 group hover:shadow-md">
                     <Heart className="w-5 h-5 2xl:w-6 2xl:h-6 text-gray-600 group-hover:text-rose-500 group-hover:scale-110 transition-all duration-300" />
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-all duration-300">
-                      2
-                    </span>
+                    {wishlist.length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-all duration-300">
+                        {wishlist.length > 9 ? '9+' : wishlist.length}
+                      </span>
+                    )}
                   </div>
                 </Link>
 
                 {/* Cart */}
                 <Link 
-                  href="/cart" 
+                  href="/user/cart" 
                   className="relative group"
                 >
                   <div className="p-2.5 rounded-xl hover:bg-amber-50/50 transition-all duration-300 group hover:shadow-md">
                     <ShoppingCart className="w-5 h-5 2xl:w-6 2xl:h-6 text-gray-600 group-hover:text-amber-600 group-hover:scale-110 transition-all duration-300" />
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-all duration-300">
-                      3
-                    </span>
+                    {totalItems > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-all duration-300">
+                        {totalItems > 9 ? '9+' : totalItems}
+                      </span>
+                    )}
                   </div>
                 </Link>
 
@@ -277,7 +281,7 @@ export default function Header() {
                             </div>
                           </Link>
                           <Link
-                            href="/wishlist"
+                            href="/user/wishlist"
                             className="flex items-center px-5 py-3.5 text-gray-700 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl mx-2 transition-all duration-300 group"
                             onClick={() => setIsUserMenuOpen(false)}
                           >
@@ -286,7 +290,7 @@ export default function Header() {
                             </div>
                             <div className="ml-3">
                               <span className="font-semibold text-sm">Wishlist</span>
-                              <div className="text-xs text-gray-500">Saved items (2)</div>
+                              <div className="text-xs text-gray-500">Saved items ({wishlist.length})</div>
                             </div>
                           </Link>
                           {user.role === 'admin' && (
@@ -391,7 +395,7 @@ export default function Header() {
                   <div className="w-19 h-15 rounded-xl overflow-hidden bg-white shadow-lg border border-amber-100">
                     <img 
                       src="/logo.jpg" 
-                      alt="Art Plaza"
+                      alt="Art plazaa "
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -412,7 +416,7 @@ export default function Header() {
                   
                   {/* Mobile Brand Name */}
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-gray-900 font-playfair">Art Plaza</span>
+                    <span className="text-xl font-bold text-gray-900 font-playfair">Art plazaa </span>
                     <span className="text-xs text-amber-600 font-medium tracking-wider">Premium</span>
                   </div>
                 </Link>
@@ -422,24 +426,28 @@ export default function Header() {
               <div className="flex items-center space-x-2">
                 {/* Wishlist */}
                 <Link 
-                  href="/wishlist" 
+                  href="/user/wishlist" 
                   className="relative p-2"
                 >
                   <Heart className="w-5 h-5 text-gray-600" />
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold shadow-sm">
-                    2
-                  </span>
+                  {wishlist.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold shadow-sm">
+                      {wishlist.length > 9 ? '9+' : wishlist.length}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Cart */}
                 <Link 
-                  href="/cart" 
+                  href="/user/cart" 
                   className="relative p-2"
                 >
                   <ShoppingCart className="w-5 h-5 text-gray-600" />
-                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold shadow-sm">
-                    3
-                  </span>
+                  {totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold shadow-sm">
+                      {totalItems > 9 ? '9+' : totalItems}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Mobile Menu Button */}
@@ -483,125 +491,152 @@ export default function Header() {
           {/* Mobile Navigation Menu */}
           {isMobileMenuOpen && (
             <div 
-              className="absolute top-full left-0 right-0 bg-white shadow-xl border-t border-gray-100" 
-              ref={mobileMenuRef}
+              className="fixed inset-0 bg-black bg-opacity-50 z-40 top-[136px]"
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <div className="py-5">
-                {/* User Info */}
-                {user ? (
-                  <div className="px-5 mb-5 pb-5 border-b border-gray-100">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative">
-                        <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
-                          {user.name?.charAt(0).toUpperCase()}
+              <div 
+                className="absolute top-0 left-0 right-0 bg-white shadow-xl max-h-[calc(100vh-136px)] overflow-y-auto"
+                ref={mobileMenuRef}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="py-4">
+                  {/* User Info */}
+                  {user ? (
+                    <div className="px-4 mb-4 pb-4 border-b border-gray-100">
+                      <div className="flex items-center space-x-3">
+                        <div className="relative flex-shrink-0">
+                          <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                            {user.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm" />
                         </div>
-                        <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-gray-800 text-lg">{user.name}</div>
-                        <div className="text-sm text-gray-600 truncate">{user.email}</div>
-                        <div className="text-xs text-amber-600 font-semibold mt-2 bg-amber-50 px-3 py-1 rounded-full inline-block">
-                          Premium Member
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-gray-800 text-base truncate">{user.name}</div>
+                          <div className="text-xs text-gray-600 truncate">{user.email}</div>
+                          <div className="text-xs text-amber-600 font-semibold mt-1 bg-amber-50 px-2 py-1 rounded-full inline-block">
+                            Premium Member
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="px-5 mb-5 pb-5 border-b border-gray-100">
-                    <div className="text-center">
-                      <div className="text-gray-700 text-base mb-3 font-medium">Welcome to Art Plaza</div>
-                      <div className="flex space-x-3">
-                        <Link
-                          href="/login"
-                          className="flex-1 text-center bg-gray-800 text-white px-4 py-3.5 rounded-xl font-semibold hover:bg-gray-900 transition-colors duration-300 shadow-md"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          Sign In
-                        </Link>
-                        <Link
-                          href="/register"
-                          className="flex-1 text-center bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-3.5 rounded-xl font-semibold hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-md hover:shadow-lg"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          Register
-                        </Link>
+                  ) : (
+                    <div className="px-4 mb-4 pb-4 border-b border-gray-100">
+                      <div>
+                        <div className="text-gray-700 text-sm mb-3 font-medium">Welcome to Art plazaa </div>
+                        <div className="flex space-x-2">
+                          <Link
+                            href="/login"
+                            className="flex-1 text-center bg-gray-800 text-white px-3 py-2.5 rounded-lg font-semibold hover:bg-gray-900 transition-colors duration-300 text-sm shadow-sm"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Sign In
+                          </Link>
+                          <Link
+                            href="/register"
+                            className="flex-1 text-center bg-gradient-to-r from-amber-500 to-amber-600 text-white px-3 py-2.5 rounded-lg font-semibold hover:from-amber-600 hover:to-amber-700 transition-all duration-300 text-sm shadow-sm"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Register
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Mobile Navigation Links */}
-                <div className="space-y-1 px-4">
-                  {navigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex items-center space-x-4 px-4 py-4 rounded-xl transition-all duration-200 ${
-                        pathname === item.href
-                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 shadow-sm'
-                          : 'text-gray-700 hover:bg-gray-50 hover:shadow-sm'
-                      }`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <div className={`p-2.5 rounded-lg ${
-                        pathname === item.href 
-                          ? 'bg-gradient-to-br from-amber-100 to-amber-200' 
-                          : 'bg-gray-100'
-                      }`}>
-                        <item.icon className={`w-5 h-5 ${pathname === item.href ? 'text-amber-600' : 'text-gray-600'}`} />
+                  {/* Mobile Navigation Links - Compact */}
+                  <div className="space-y-0.5 px-3 mb-4">
+                    {navigation.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
+                          pathname === item.href
+                            ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <div className={`p-2 rounded-md ${
+                          pathname === item.href 
+                            ? 'bg-gradient-to-br from-amber-100 to-amber-200' 
+                            : 'bg-gray-100'
+                        }`}>
+                          <item.icon className={`w-4 h-4 ${pathname === item.href ? 'text-amber-600' : 'text-gray-600'}`} />
+                        </div>
+                        <span className="font-medium text-sm">{item.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* Additional Mobile User Actions - Compact */}
+                  {user && (
+                    <div className="pt-3 border-t border-gray-100">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 mb-2">
+                        Account
                       </div>
-                      <span className="font-medium text-base">{item.name}</span>
-                    </Link>
-                  ))}
+                      
+                      <div className="space-y-0.5 px-3 mb-3">
+                        <Link
+                          href="/profile"
+                          className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <User className="w-4 h-4 text-amber-600" />
+                          <span className="font-medium text-sm">My Profile</span>
+                        </Link>
+                        
+                        <Link
+                          href="/orders"
+                          className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Package className="w-4 h-4 text-amber-600" />
+                          <span className="font-medium text-sm">My Orders</span>
+                        </Link>
+                        
+                        <Link
+                          href="/user/wishlist"
+                          className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <div className="relative">
+                            <Heart className="w-4 h-4 text-rose-600" />
+                          </div>
+                          <span className="font-medium text-sm">Wishlist ({wishlist.length})</span>
+                        </Link>
+                        
+                        {user.role === 'admin' && (
+                          <Link
+                            href="/admin"
+                            className="flex items-center space-x-3 px-3 py-2.5 text-amber-700 hover:bg-amber-50 rounded-lg transition-colors duration-200"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Settings className="w-4 h-4 text-amber-600" />
+                            <span className="font-medium text-sm">Admin Panel</span>
+                          </Link>
+                        )}
+                      </div>
+                      
+                      <div className="px-3 mt-4 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center space-x-3 w-full px-3 py-2.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors duration-200"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span className="font-medium text-sm">Sign out</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contact Info */}
+                  <div className="px-4 mt-6 pt-4 border-t border-gray-100">
+                    <div className="text-xs text-gray-500 text-center">
+                      <p className="mb-1">Art Plazza Premium Stationery</p>
+                      <p>© {new Date().getFullYear()} All rights reserved</p>
+                    </div>
+                  </div>
                 </div>
-
-                {/* Additional Mobile User Actions */}
-                {user && (
-                  <div className="mt-6 pt-5 border-t border-gray-100">
-                    <div className="grid grid-cols-2 gap-3 px-4 mb-6">
-                      <Link
-                        href="/profile"
-                        className="flex flex-col items-center p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl hover:shadow-md transition-all duration-300 group"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <div className="p-2.5 bg-white rounded-lg mb-2 group-hover:scale-110 transition-transform duration-300">
-                          <User className="w-5 h-5 text-amber-600" />
-                        </div>
-                        <span className="font-semibold text-gray-900 text-sm">Profile</span>
-                      </Link>
-                      <Link
-                        href="/orders"
-                        className="flex flex-col items-center p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl hover:shadow-md transition-all duration-300 group"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <div className="p-2.5 bg-white rounded-lg mb-2 group-hover:scale-110 transition-transform duration-300">
-                          <Package className="w-5 h-5 text-amber-600" />
-                        </div>
-                        <span className="font-semibold text-gray-900 text-sm">Orders</span>
-                      </Link>
-                    </div>
-                    
-                    <div className="px-4 space-y-2">
-                      {user.role === 'admin' && (
-                        <Link
-                          href="/admin"
-                          className="flex items-center space-x-3 px-4 py-3.5 text-amber-700 hover:bg-amber-50 rounded-xl transition-colors duration-200"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <Settings className="w-5 h-5 text-amber-600" />
-                          <span className="font-medium">Admin Panel</span>
-                        </Link>
-                      )}
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center space-x-3 w-full px-4 py-3.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors duration-200 mt-2"
-                      >
-                        <LogOut className="w-5 h-5" />
-                        <span className="font-medium">Sign out</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

@@ -15,7 +15,9 @@ import {
   FileText,
   CreditCard,
   Sliders,
-  User
+  User,
+  Heart, // Add Heart icon
+  BarChart3 // Add BarChart3 for analytics if needed
 } from 'lucide-react';
 import { useAdminAuth } from '../../../hooks/useAdminAuth';
 
@@ -38,7 +40,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const { logout } = useAdminAuth();
 
-  // Updated navigation items with requested changes
+  // Updated navigation items with Wishlists
   const navigationItems: NavItem[] = [
     { 
       title: 'Dashboard', 
@@ -56,7 +58,7 @@ export default function AdminSidebar() {
       title: 'Sliders', 
       icon: Sliders, 
       color: 'orange', 
-      href: '/admin/slider' // Changed from subItems to single page
+      href: '/admin/slider'
     },
     { 
       title: 'Categories', 
@@ -89,6 +91,12 @@ export default function AdminSidebar() {
       color: 'emerald' 
     },
     { 
+      title: 'Wishlists', 
+      icon: Heart, 
+      href: '/admin/wishlists', 
+      color: 'pink'  // Added Wishlists menu item
+    },
+    { 
       title: 'Blogs', 
       icon: FileText, 
       color: 'violet', 
@@ -117,7 +125,7 @@ export default function AdminSidebar() {
         cyan: 'bg-cyan-600 text-white border-cyan-600',
         emerald: 'bg-emerald-600 text-white border-emerald-600',
         violet: 'bg-violet-600 text-white border-violet-600',
-        pink: 'bg-pink-600 text-white border-pink-600',
+        pink: 'bg-pink-600 text-white border-pink-600', // Added pink for wishlists
         gray: 'bg-gray-600 text-white border-gray-600'
       };
       return activeColors[color] || activeColors.gray;
@@ -133,7 +141,7 @@ export default function AdminSidebar() {
       cyan: 'text-cyan-600 bg-cyan-50 border-cyan-200 hover:bg-cyan-100',
       emerald: 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100',
       violet: 'text-violet-600 bg-violet-50 border-violet-200 hover:bg-violet-100',
-      pink: 'text-pink-600 bg-pink-50 border-pink-200 hover:bg-pink-100',
+      pink: 'text-pink-600 bg-pink-50 border-pink-200 hover:bg-pink-100', // Added pink for wishlists
       gray: 'text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100'
     };
     return colors[color] || colors.gray;

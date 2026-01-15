@@ -22,6 +22,7 @@ import { productApi } from '../../lib/api/products';
 import { Product } from '../../../types/product';
 import ProductCard from '../../components/shared/ProductCard';
 import ProductImageGallery from '../../components/shared/ProductImageGallery';
+import ProductActions from '../../components/shared/ProductActions';
 
 interface ProductPageProps {
   params: Promise<{
@@ -35,13 +36,13 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   
   if (!product) {
     return {
-      title: 'Product Not Found | Art Plaza',
+      title: 'Product Not Found | Art plazaa ',
       description: 'Premium art supplies and stationery',
     };
   }
   
   return {
-    title: `${product.name} | Premium Art Supplies | Art Plaza`,
+    title: `${product.name} | Premium Art Supplies | Art plazaa `,
     description: product.shortDescription || product.description?.substring(0, 160) || '',
     openGraph: {
       title: product.name,
@@ -244,37 +245,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 </div>
               )}
 
-              {/* Add to Cart & Actions */}
-              <div className="space-y-3 md:space-y-4 mb-6 md:mb-8">
-                {/* Quantity Selector */}
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-                    <button className="px-3 sm:px-4 py-2 sm:py-3 text-gray-600 hover:bg-gray-100 transition-colors active:bg-gray-200 text-lg">
-                      -
-                    </button>
-                    <span className="px-3 sm:px-4 py-2 sm:py-3 text-gray-900 font-medium min-w-[48px] sm:min-w-[60px] text-center text-sm sm:text-base">
-                      1
-                    </span>
-                    <button className="px-3 sm:px-4 py-2 sm:py-3 text-gray-600 hover:bg-gray-100 transition-colors active:bg-gray-200 text-lg">
-                      +
-                    </button>
-                  </div>
-
-                  <button className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 sm:py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-medium flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 group">
-                    <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm sm:text-base">Add to Cart</span>
-                  </button>
-
-                  <button className="p-2.5 sm:p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors active:scale-95 group">
-                    <Heart className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform text-gray-600" />
-                  </button>
-                </div>
-
-                {/* Updated Buy Now Button - Green Color */}
-                <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 sm:py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl active:scale-95 text-sm sm:text-base">
-                  Buy Now
-                </button>
-              </div>
+              {/* Add to Cart & Actions - Now using ProductActions client component */}
+              <ProductActions product={product} />
 
               {/* Premium Features */}
               <div className="space-y-3 md:space-y-4 mb-6 md:mb-8">

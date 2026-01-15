@@ -1,8 +1,11 @@
+// app/components/shared/AddToCartButton.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingBag, Heart, Check } from 'lucide-react';
 import { Product } from '../../../types/product';
+import { useCart } from '../../contexts/CartContext';
+import { useWishlist } from '../../contexts/WishlistContext';
 
 interface AddToCartButtonProps {
   product: Product;
@@ -13,17 +16,42 @@ export default function AddToCartButton({ product, variant = 'mobile' }: AddToCa
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
+  const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+
+  // Sync wishlist state
+  useEffect(() => {
+    if (product._id) {
+      setIsWishlisted(isInWishlist(product._id));
+    }
+  }, [product._id, isInWishlist]);
 
   const handleAddToCart = () => {
+    addToCart(product, quantity);
     setIsAdded(true);
-    // Simulate API call
+    
+    // Reset animation after 2 seconds
     setTimeout(() => {
       setIsAdded(false);
     }, 2000);
   };
 
   const handleWishlist = () => {
-    setIsWishlisted(!isWishlisted);
+    if (!product._id) return;
+    
+    if (isWishlisted) {
+      removeFromWishlist(product._id);
+      setIsWishlisted(false);
+    } else {
+      addToWishlist(product);
+      setIsWishlisted(true);
+    }
+  };
+
+  const handleBuyNow = () => {
+    addToCart(product, quantity);
+    // Navigate to checkout page
+    window.location.href = '/user/checkout';
   };
 
   if (variant === 'mobile') {
@@ -74,7 +102,7 @@ export default function AddToCartButton({ product, variant = 'mobile' }: AddToCa
           className="p-2 sm:p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors group"
         >
           <Heart className={`w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform ${
-            isWishlisted ? 'text-red-500 fill-red-500' : 'text-gray-600'
+            isWishlisted ? 'text-rose-500 fill-rose-500' : 'text-gray-600'
           }`} />
         </button>
       </div>
@@ -127,12 +155,15 @@ export default function AddToCartButton({ product, variant = 'mobile' }: AddToCa
           className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors group"
         >
           <Heart className={`w-5 h-5 group-hover:scale-110 transition-transform ${
-            isWishlisted ? 'text-red-500 fill-red-500' : 'text-gray-600'
+            isWishlisted ? 'text-rose-500 fill-rose-500' : 'text-gray-600'
           }`} />
         </button>
       </div>
 
-      <button className="w-full bg-gradient-to-r from-gray-900 to-black text-white py-3 rounded-lg hover:from-gray-800 hover:to-gray-900 transition-all duration-300 font-medium shadow-lg hover:shadow-xl">
+      <button 
+        onClick={handleBuyNow}
+        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
+      >
         Buy Now
       </button>
     </div>

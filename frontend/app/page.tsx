@@ -650,7 +650,7 @@ export default function HomePage() {
                     Ready to Create Your Masterpiece?
                   </h2>
                   <p className="text-gray-300 text-base md:text-lg mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed">
-                    Join thousands of artists who trust Art Plaza for their premium art supplies.
+                    Join thousands of artists who trust Art plazaa  for their premium art supplies.
                     Elevate your creativity with our curated collections.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
