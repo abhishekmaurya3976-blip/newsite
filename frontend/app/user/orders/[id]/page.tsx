@@ -1,4 +1,4 @@
-// app/user/orders/[id]/page.tsx
+// app/user/orders/[id]/page.tsx - UPDATED WITH REVIEW BUTTONS
 'use client';
 
 import { useState, useEffect, ReactNode } from 'react';
@@ -24,21 +24,27 @@ import {
   RefreshCw,
   User,
   Mail,
-  Phone
+  Phone,
+  Star,
+  Edit
 } from 'lucide-react';
 import { ordersApi } from '../../../lib/api/orders';
+import { useRating } from '../../../contexts/RatingsContext';
+import { useAuth } from '../../../components/contexts/AuthContext';
+
+interface OrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  image?: string;
+}
 
 interface Order {
   _id: string;
   orderNumber: string;
   userId: string;
-  items: Array<{
-    productId: string;
-    productName: string;
-    quantity: number;
-    price: number;
-    image?: string;
-  }>;
+  items: OrderItem[];
   shippingAddress: {
     firstName: string;
     lastName: string;
@@ -68,16 +74,6 @@ interface Order {
   cancelledAt?: string;
 }
 
-interface StatusStep {
-  status: string;
-  label: string;
-  description: string;
-  icon: ReactNode;
-  date?: string;
-  completed: boolean;
-  current: boolean;
-}
-
 export default function OrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -86,12 +82,24 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [canReviewItems, setCanReviewItems] = useState<{ [key: string]: boolean }>({});
+  const [checkingReviewStatus, setCheckingReviewStatus] = useState(false);
 
   const orderId = params.id as string;
+  const { user } = useAuth();
+  const { canReviewProduct } = useRating();
 
   useEffect(() => {
-    loadOrder();
+    if (orderId) {
+      loadOrder();
+    }
   }, [orderId]);
+
+  useEffect(() => {
+    if (order && user && order.orderStatus === 'delivered') {
+      checkReviewEligibility();
+    }
+  }, [order, user]);
 
   const loadOrder = async () => {
     try {
@@ -110,6 +118,32 @@ export default function OrderDetailsPage() {
       setError(error.message || 'Failed to load order details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkReviewEligibility = async () => {
+    if (!order || !user) return;
+    
+    try {
+      setCheckingReviewStatus(true);
+      const reviewStatus: { [key: string]: boolean } = {};
+      
+      // Check each item in the order
+      for (const item of order.items) {
+        try {
+          const canReview = await canReviewProduct(item.productId);
+          reviewStatus[item.productId] = canReview;
+        } catch (error) {
+          console.error(`Error checking review eligibility for product ${item.productId}:`, error);
+          reviewStatus[item.productId] = false;
+        }
+      }
+      
+      setCanReviewItems(reviewStatus);
+    } catch (error) {
+      console.error('Error checking review eligibility:', error);
+    } finally {
+      setCheckingReviewStatus(false);
     }
   };
 
@@ -142,56 +176,8 @@ export default function OrderDetailsPage() {
     }, 500);
   };
 
-  const getStatusSteps = (): StatusStep[] => {
-    if (!order) return [];
-    
-    const steps: StatusStep[] = [
-      {
-        status: 'pending',
-        label: 'Order Placed',
-        description: 'Your order has been received',
-        icon: <CheckCircle className="w-5 h-5" />,
-        date: order.createdAt,
-        completed: true,
-        current: false
-      },
-      {
-        status: 'confirmed',
-        label: 'Order Confirmed',
-        description: 'We have confirmed your order',
-        icon: <Package className="w-5 h-5" />,
-        completed: ['confirmed', 'processing', 'shipped', 'delivered'].includes(order.orderStatus),
-        current: order.orderStatus === 'confirmed'
-      },
-      {
-        status: 'processing',
-        label: 'Processing',
-        description: 'Your order is being prepared',
-        icon: <Clock className="w-5 h-5" />,
-        completed: ['processing', 'shipped', 'delivered'].includes(order.orderStatus),
-        current: order.orderStatus === 'processing'
-      },
-      {
-        status: 'shipped',
-        label: 'Shipped',
-        description: 'Your order is on the way',
-        icon: <Truck className="w-5 h-5" />,
-        date: order.orderStatus === 'shipped' ? order.updatedAt : undefined,
-        completed: ['shipped', 'delivered'].includes(order.orderStatus),
-        current: order.orderStatus === 'shipped'
-      },
-      {
-        status: 'delivered',
-        label: 'Delivered',
-        description: 'Your order has been delivered',
-        icon: <Home className="w-5 h-5" />,
-        date: order.deliveredAt,
-        completed: order.orderStatus === 'delivered',
-        current: order.orderStatus === 'delivered'
-      }
-    ];
-
-    return steps;
+  const handleWriteReview = (productId: string, productName: string) => {
+    router.push(`/products/${productId}/reviews`);
   };
 
   const formatDate = (dateString: string) => {
@@ -246,8 +232,6 @@ export default function OrderDetailsPage() {
       </div>
     );
   }
-
-  const statusSteps = getStatusSteps();
 
   return (
     <div className="min-h-screen bg-white pt-24">
@@ -362,114 +346,71 @@ export default function OrderDetailsPage() {
               </div>
             </div>
 
-            {/* Order Status Timeline */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Order Status</h2>
-              
-              <div className="relative">
-                {/* Progress Line */}
-                <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200">
-                  <div 
-                    className="absolute top-0 left-0 w-0.5 bg-green-500 transition-all duration-500"
-                    style={{ 
-                      height: `${(statusSteps.filter(s => s.completed).length / statusSteps.length) * 100}%` 
-                    }}
-                  />
-                </div>
-
-                {/* Steps */}
-                <div className="space-y-8">
-                  {statusSteps.map((step, index) => (
-                    <div key={step.status} className="relative">
-                      <div className="flex items-start">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${
-                          step.completed 
-                            ? 'bg-green-500 text-white' 
-                            : step.current
-                            ? 'bg-blue-500 text-white animate-pulse'
-                            : 'bg-gray-200 text-gray-400'
-                        }`}>
-                          {step.icon}
-                        </div>
-                        
-                        <div className="ml-6 pt-1">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-bold text-gray-900">{step.label}</h3>
-                            {step.completed && (
-                              <CheckCircle className="w-5 h-5 text-green-500" />
-                            )}
-                          </div>
-                          <p className="text-gray-600 mt-1">{step.description}</p>
-                          {step.date && (
-                            <p className="text-sm text-gray-500 mt-2">
-                              {formatDate(step.date)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tracking Info */}
-              {(order.trackingNumber || order.shippingProvider) && (
-                <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-3 mb-2">
-                    <TruckIcon className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-bold text-gray-900">Tracking Information</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {order.trackingNumber && (
-                      <div>
-                        <p className="text-sm text-gray-600">Tracking Number</p>
-                        <p className="font-mono font-bold text-gray-900">{order.trackingNumber}</p>
-                      </div>
-                    )}
-                    {order.shippingProvider && (
-                      <div>
-                        <p className="text-sm text-gray-600">Shipping Provider</p>
-                        <p className="font-medium text-gray-900">{order.shippingProvider}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Order Items */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Order Items</h2>
               
               <div className="space-y-4">
                 {order.items.map((item, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
-                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.productName}
-                          fill
-                          className="object-cover"
-                          sizes="64px"
-                        />
-                      ) : (
-                        <Package className="w-8 h-8 text-gray-400 absolute inset-0 m-auto" />
-                      )}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">{item.productName}</h3>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                        <span>Quantity: {item.quantity}</span>
-                        <span>Price: ₹{item.price.toLocaleString()}</span>
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-start gap-4">
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {item.image ? (
+                          <Image
+                            src={item.image}
+                            alt={item.productName}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        ) : (
+                          <Package className="w-8 h-8 text-gray-400 absolute inset-0 m-auto" />
+                        )}
                       </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-gray-900">
-                        ₹{(item.quantity * item.price).toLocaleString()}
-                      </p>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-bold text-gray-900">{item.productName}</h3>
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                              <span>Quantity: {item.quantity}</span>
+                              <span>Price: ₹{item.price.toLocaleString()}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-gray-900">
+                              ₹{(item.quantity * item.price).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Review Button for Delivered Orders */}
+                        {order.orderStatus === 'delivered' && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">
+                                  {checkingReviewStatus 
+                                    ? 'Checking review eligibility...' 
+                                    : canReviewItems[item.productId] 
+                                      ? 'You can review this product' 
+                                      : 'Already reviewed or not eligible'}
+                                </p>
+                              </div>
+                              
+                              <button
+                                onClick={() => handleWriteReview(item.productId, item.productName)}
+                                disabled={checkingReviewStatus || !canReviewItems[item.productId]}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors font-medium text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Star className="w-4 h-4 mr-2" />
+                                Write Review
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

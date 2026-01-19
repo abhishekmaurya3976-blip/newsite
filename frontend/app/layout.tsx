@@ -1,11 +1,12 @@
-// app/layout.tsx
+// app/layout.tsx (Updated)
 import type { Metadata } from 'next';
 import './globals.css';
 import Header from './components/ui/Header';
 import Footer from './components/ui/Footer';
 import { AuthProvider } from './components/contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
-import { WishlistProvider } from './contexts/WishlistContext'; // Add this import
+import { WishlistProvider } from './contexts/WishlistContext';
+import { RatingProvider } from './contexts/RatingsContext'; // Add this import
 
 export const metadata: Metadata = {
   title: 'Art plazaa ',
@@ -32,12 +33,14 @@ export default function RootLayout({
       <body style={{ fontFamily: "'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" }}>
         <AuthProvider>
           <CartProvider>
-            <WishlistProvider> {/* Add this wrapper */}
-              <Header />
-              <main className="min-h-screen">
-                {children}
-              </main>
-              <Footer />
+            <WishlistProvider>
+              <RatingProvider> {/* Add this wrapper */}
+                <Header />
+                <main className="min-h-screen">
+                  {children}
+                </main>
+                <Footer />
+              </RatingProvider>
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>

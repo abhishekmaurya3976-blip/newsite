@@ -1,4 +1,5 @@
-﻿const mongoose = require('mongoose');
+﻿// models/Product.js
+const mongoose = require('mongoose');
 const slugify = require('slugify');
 
 const ImageSchema = new mongoose.Schema({
@@ -26,6 +27,32 @@ const DimensionsSchema = new mongoose.Schema({
   width: { type: Number, default: 0 },
   height: { type: Number, default: 0 }
 });
+
+const RatingBreakdownSchema = new mongoose.Schema({
+  1: { type: Number, default: 0 },
+  2: { type: Number, default: 0 },
+  3: { type: Number, default: 0 },
+  4: { type: Number, default: 0 },
+  5: { type: Number, default: 0 }
+}, { _id: false });
+
+const ProductRatingSchema = new mongoose.Schema({
+  average: { 
+    type: Number, 
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  count: { 
+    type: Number, 
+    default: 0,
+    min: 0
+  },
+  breakdown: {
+    type: RatingBreakdownSchema,
+    default: () => ({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 })
+  }
+}, { _id: false });
 
 const ProductSchema = new mongoose.Schema({
   name: { 
@@ -118,6 +145,14 @@ const ProductSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  rating: {
+    type: ProductRatingSchema,
+    default: () => ({ 
+      average: 0, 
+      count: 0, 
+      breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } 
+    })
+  },
   metaTitle: { 
     type: String,
     maxlength: [70, 'Meta title cannot exceed 70 characters']
@@ -156,5 +191,15 @@ ProductSchema.index({ isFeatured: 1 });
 ProductSchema.index({ isBestSeller: 1 });
 ProductSchema.index({ price: 1 });
 ProductSchema.index({ 'category.id': 1 });
+ProductSchema.index({ 'rating.average': -1 });
+ProductSchema.index({ 'rating.count': -1 });
+
+// Virtual for reviews
+ProductSchema.virtual('reviews', {
+  ref: 'Review',
+  localField: '_id',
+  foreignField: 'productId',
+  justOne: false
+});
 
 module.exports = mongoose.model('Product', ProductSchema);

@@ -1,3 +1,4 @@
+// types/product.ts
 export type ProductImage = {
   id?: string;
   url: string;
@@ -5,6 +6,35 @@ export type ProductImage = {
   publicId?: string;
   isPrimary?: boolean;
   order?: number;
+};
+
+export type RatingBreakdown = {
+  1: number;
+  2: number;
+  3: number;
+  4: number;
+  5: number;
+};
+
+export type ProductRating = {
+  average: number;
+  count: number;
+  breakdown?: RatingBreakdown;
+};
+
+export type ProductReview = {
+  _id?: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  title?: string;
+  comment: string;
+  images?: string[];
+  verifiedPurchase: boolean;
+  helpfulCount: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Product = {
@@ -39,6 +69,8 @@ export type Product = {
   metaTitle?: string;
   metaDescription?: string;
   images: ProductImage[];
+  rating?: ProductRating;
+  reviews?: ProductReview[];
   createdAt?: string;
   updatedAt?: string;
 };
@@ -63,6 +95,5 @@ export type CreateProductDto = {
   metaDescription?: string;
   images?: ProductImage[];
 };
-
 
 export type UpdateProductDto = Partial<CreateProductDto>;
