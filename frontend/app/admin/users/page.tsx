@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { authAPI, User } from '../../lib/api/auth';
 
+// extend User type locally to allow _id from backend if present
+type RawUser = User & { _id?: string };
+
 export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,15 +16,29 @@ export default function AdminUsers() {
       setLoading(true);
       setError('');
       try {
-        // === Preferred: pass empty string to satisfy signature ===
-        // If your API accepts no token, this will call the endpoint without a token.
+        // call without token (your backend handles admin protection)
         const response = await authAPI.getUsers('');
 
-        // === Alternative if the above still triggers runtime/server rejection
-        // const response = await (authAPI.getUsers as any)();
-
         if (response?.data?.success) {
-          setUsers(response.data.data || []);
+          const rawUsers: RawUser[] = response.data.data || [];
+
+          // Normalize: ensure each user has an `id` (prefer id, then _id)
+          const normalized: User[] = rawUsers.map((u, idx) => {
+            const id = (u.id && u.id.toString()) || (u._id && u._id.toString()) || `${u.email ?? 'user'}-${idx}`;
+            return {
+              // keep existing fields but force id string
+              id,
+              name: u.name ?? '',
+              email: u.email ?? '',
+              phone: u.phone ?? '',
+              role: u.role ?? 'user',
+              address: u.address,
+              createdAt: u.createdAt,
+              updatedAt: u.updatedAt,
+            };
+          });
+
+          setUsers(normalized);
         } else {
           setError(response?.data?.message || 'Failed to fetch users');
         }
@@ -71,6 +88,7 @@ export default function AdminUsers() {
 
             <tbody className="bg-white divide-y divide-gray-200">
               {users.map((user) => (
+                // now `user.id` is guaranteed (normalized above). No more key warning.
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -97,9 +115,11 @@ export default function AdminUsers() {
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
-                    }`}>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                      }`}
+                    >
                       {user.role || 'user'}
                     </span>
                   </td>

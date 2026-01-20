@@ -27,7 +27,6 @@ export interface ChangePasswordResponse {
 export const authAPI = {
   // Login with phone and password
   login: async (phone: string, password: string): Promise<{ data: AuthResponse }> => {
-    // Validate phone number
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(phone)) {
       throw new Error('Please enter a valid 10-digit phone number');
@@ -38,26 +37,25 @@ export const authAPI = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ phone, password }), // Changed from email to phone
+      body: JSON.stringify({ phone, password }),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Login failed');
     }
-    
+
     return { data: await response.json() };
   },
-  
+
   // Register with phone (required) and email (optional)
   register: async (userData: {
     name: string;
-    email?: string; // Optional
-    phone: string; // Required
+    email?: string;
+    phone: string;
     password: string;
     address?: string;
   }): Promise<{ data: AuthResponse }> => {
-    // Validate phone number
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(userData.phone)) {
       throw new Error('Please enter a valid 10-digit phone number');
@@ -70,16 +68,16 @@ export const authAPI = {
       },
       body: JSON.stringify(userData),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Registration failed');
     }
-    
+
     return { data: await response.json() };
   },
-  
-  // Update user profile
+
+  // Update user profile (requires token)
   updateProfile: async (profileData: Partial<User>, token: string): Promise<{ data: AuthResponse }> => {
     const response = await fetch(`${API_BASE_URL}/auth/profile`, {
       method: 'PUT',
@@ -89,38 +87,47 @@ export const authAPI = {
       },
       body: JSON.stringify(profileData),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Profile update failed');
     }
-    
-    return { data: await response.json() };
-  },
-  
-  // Get all users (admin only)
-  getUsers: async (token: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/users`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch users');
-    }
-    
+
     return { data: await response.json() };
   },
 
-  // Add this function
-  // Change password
+  // Get all users (admin only) — token is now optional
+  getUsers: async (
+    token?: string
+  ): Promise<{ data: { success: boolean; data: User[]; message?: string } }> => {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/users`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      // try to provide backend message when available
+      try {
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to fetch users');
+      } catch {
+        throw new Error('Failed to fetch users');
+      }
+    }
+
+    return { data: await response.json() };
+  },
+
+  // Change password (requires token)
   changePassword: async (
-    currentPassword: string, 
-    newPassword: string, 
+    currentPassword: string,
+    newPassword: string,
     token: string
   ): Promise<{ data: ChangePasswordResponse }> => {
-    // Validate new password
     if (newPassword.length < 6) {
       throw new Error('New password must be at least 6 characters');
     }
@@ -133,12 +140,12 @@ export const authAPI = {
       },
       body: JSON.stringify({ currentPassword, newPassword }),
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Password change failed');
     }
-    
+
     return { data: await response.json() };
   },
 };
