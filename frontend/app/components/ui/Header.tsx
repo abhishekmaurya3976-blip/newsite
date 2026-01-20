@@ -236,7 +236,7 @@ export default function Header() {
                       </div>
                       <div className="flex flex-col items-start">
                         <span className="text-sm font-semibold text-gray-900">{user.name}</span>
-                        <span className="text-xs text-gray-500 font-medium">Premium Member</span>
+                        {/* <span className="text-xs text-gray-500 font-medium">Premium Member</span> */}
                       </div>
                       <ChevronDown className={`w-4 h-4 transition-all duration-300 ${isUserMenuOpen ? 'rotate-180 text-amber-600' : 'text-gray-500 group-hover:text-amber-600'}`} />
                     </button>
@@ -247,10 +247,6 @@ export default function Header() {
                         <div className="px-5 py-4 border-b border-gray-200/30 bg-gradient-to-r from-amber-50/50 to-orange-50/50 rounded-t-2xl">
                           <div className="font-bold text-gray-900 text-lg">{user.name}</div>
                           <div className="text-sm text-gray-600 truncate">{user.email}</div>
-                          <div className="text-xs text-amber-600 font-semibold mt-2 bg-white/80 px-3 py-1.5 rounded-full inline-flex items-center">
-                            <span className="w-2 h-2 bg-amber-400 rounded-full mr-2"></span>
-                            Premium Member
-                          </div>
                         </div>
                         
                         <div className="py-3 space-y-1">
@@ -513,9 +509,6 @@ export default function Header() {
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-gray-800 text-base truncate">{user.name}</div>
                           <div className="text-xs text-gray-600 truncate">{user.email}</div>
-                          <div className="text-xs text-amber-600 font-semibold mt-1 bg-amber-50 px-2 py-1 rounded-full inline-block">
-                            Premium Member
-                          </div>
                         </div>
                       </div>
                     </div>

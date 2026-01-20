@@ -4,11 +4,10 @@
 import { useState, useEffect } from 'react';
 import {
   Share2,
-  Copy as CopyIcon,
+  Copy,
   Facebook,
   MessageCircle,
   CheckCircle,
-  AlertCircle,
   Twitter,
   Linkedin,
   Mail,
@@ -22,168 +21,142 @@ interface ShareButtonsProps {
 
 export default function ShareButtons({ product }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [absoluteUrl, setAbsoluteUrl] = useState('');
+  const [hasNativeShare, setHasNativeShare] = useState(false);
+  const [productUrl, setProductUrl] = useState('');
 
+  // Initialize on client only - SAFE from hydration
   useEffect(() => {
-    setMounted(true);
-    // Set absolute URL only on client side
-    const url = typeof window !== 'undefined' 
-      ? `${window.location.origin}/products/${product.slug}`
-      : '';
-    setAbsoluteUrl(url);
+    // Build the URL
+    const url = `${window.location.origin}/products/${product.slug}`;
+    setProductUrl(url);
+    
+    // Check for native share API
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      setHasNativeShare(true);
+    }
   }, [product.slug]);
 
-  // Robust copy helper
-  const robustCopy = async (text: string) => {
-    setErrorMsg(null);
+  // Show loading state during SSR and initial client render
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
-    try {
-      // Use the modern clipboard API
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } else {
-        // Fallback for older browsers or insecure contexts
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.top = '0';
-        textarea.style.left = '0';
-        textarea.style.opacity = '0';
-        
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        
-        try {
-          const successful = document.execCommand('copy');
-          document.body.removeChild(textarea);
-          
-          if (!successful) {
-            throw new Error('execCommand failed');
-          }
-          return true;
-        } catch (err) {
-          document.body.removeChild(textarea);
-          throw err;
-        }
-      }
-    } catch (err) {
-      console.error('Copy failed:', err);
-      setErrorMsg('Failed to copy. Please select and copy manually.');
-      return false;
+  // Simple, reliable copy function
+  const copyToClipboard = (text: string) => {
+    // Method 1: Modern API
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => {
+          fallbackCopy(text);
+        });
+    } else {
+      // Method 2: Fallback
+      fallbackCopy(text);
     }
   };
 
-  // Button handlers
-  const handleCopyLink = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const fallbackCopy = (text: string) => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
     
-    setCopied(false);
-    setErrorMsg(null);
-
-    if (!absoluteUrl) {
-      setErrorMsg('URL is not available. Please refresh the page.');
-      return;
-    }
-
-    const ok = await robustCopy(absoluteUrl);
-    if (ok) {
+    try {
+      document.execCommand('copy');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
+      // Show text in alert for manual copy
+      window.prompt('Copy to clipboard: Ctrl+C, Enter', text);
+    } finally {
+      document.body.removeChild(textArea);
     }
   };
 
-  const handleWhatsApp = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!absoluteUrl) return;
-    
-    const shareText = `Check out "${product.name}" on Art Plazaa!\n\n${absoluteUrl}\n\n${product.shortDescription || 'Premium art supplies and stationery'}`;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  const handleCopyLink = () => {
+    if (!productUrl) return;
+    copyToClipboard(productUrl);
   };
 
-  const handleFacebook = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const shareOnWhatsApp = () => {
+    if (!productUrl) return;
+    const text = `Check out "${product.name}" on Art Plazaa! ${product.shortDescription || ''} ${productUrl}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     
-    if (!absoluteUrl) return;
-    
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(absoluteUrl)}&quote=${encodeURIComponent(`Check out "${product.name}" on Art Plazaa`)}`;
-    window.open(facebookUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
+    // Create a temporary link element
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handleTwitter = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!absoluteUrl) return;
-    
-    const shareText = `Check out "${product.name}" on Art Plazaa! ${product.shortDescription || ''}`;
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(absoluteUrl)}`;
-    window.open(twitterUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
+  const shareOnFacebook = () => {
+    if (!productUrl) return;
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`;
+    window.open(url, '_blank', 'width=600,height=400');
   };
 
-  const handleLinkedIn = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!absoluteUrl) return;
-    
-    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(absoluteUrl)}`;
-    window.open(linkedinUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
+  const shareOnTwitter = () => {
+    if (!productUrl) return;
+    const text = `Check out "${product.name}" on Art Plazaa!`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(productUrl)}`;
+    window.open(url, '_blank', 'width=600,height=400');
   };
 
-  const handleEmail = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!absoluteUrl) return;
-    
-    const subject = encodeURIComponent(`Check out "${product.name}" on Art Plazaa`);
-    const body = encodeURIComponent(`Check out "${product.name}" on Art Plazaa!\n\n${absoluteUrl}\n\n${product.shortDescription || 'Premium art supplies and stationery'}`);
-    const mailtoUrl = `mailto:?subject=${subject}&body=${body}`;
-    window.open(mailtoUrl, '_blank', 'noopener,noreferrer');
+  const shareOnLinkedIn = () => {
+    if (!productUrl) return;
+    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(productUrl)}`;
+    window.open(url, '_blank', 'width=600,height=400');
   };
 
-  const openProductInNewTab = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const shareViaEmail = () => {
+    if (!productUrl) return;
+    const subject = `Check out "${product.name}" on Art Plazaa`;
+    const body = `I thought you might like this product from Art Plazaa:\n\n${product.name}\n\n${product.shortDescription || ''}\n\nView it here: ${productUrl}`;
+    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
-    if (!absoluteUrl) return;
-    
-    window.open(absoluteUrl, '_blank', 'noopener,noreferrer');
+    // Open email client
+    window.location.href = mailtoUrl;
   };
 
-  // Don't render buttons until mounted to avoid hydration mismatch
-  if (!mounted) {
+  const nativeShare = async () => {
+    if (!productUrl || !hasNativeShare) return;
+    
+    try {
+      await navigator.share({
+        title: product.name,
+        text: product.shortDescription || 'Check out this amazing product!',
+        url: productUrl,
+      });
+    } catch (error) {
+      // User cancelled or error
+      console.log('Share cancelled:', error);
+    }
+  };
+
+  const openInNewTab = () => {
+    if (!productUrl) return;
+    window.open(productUrl, '_blank');
+  };
+
+  // Show loading skeleton until client-side hydrated
+  if (!isClient) {
     return (
       <div className="pt-6 md:pt-8 border-t border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="text-lg font-semibold text-gray-900 mb-1 flex items-center">
-              <Share2 className="w-5 h-5 mr-3 text-purple-600" />
-              Share this product
-            </h4>
-            <p className="text-sm text-gray-500">
-              Help others discover this amazing product!
-            </p>
-          </div>
-        </div>
-        <div className="h-12 bg-gray-100 animate-pulse rounded-lg"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pt-6 md:pt-8 border-t border-gray-200">
-      <div className="flex items-center justify-between mb-4">
-        <div>
+        <div className="mb-4">
           <h4 className="text-lg font-semibold text-gray-900 mb-1 flex items-center">
             <Share2 className="w-5 h-5 mr-3 text-purple-600" />
             Share this product
@@ -192,115 +165,159 @@ export default function ShareButtons({ product }: ShareButtonsProps) {
             Help others discover this amazing product!
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="h-10 w-24 bg-gray-100 animate-pulse rounded-lg"></div>
+          <div className="h-10 w-24 bg-gray-100 animate-pulse rounded-lg"></div>
+          <div className="h-10 w-24 bg-gray-100 animate-pulse rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Once client-side hydrated, show the actual component
+  return (
+    <div className="pt-6 md:pt-8 border-t border-gray-200">
+      <div className="mb-4">
+        <h4 className="text-lg font-semibold text-gray-900 mb-1 flex items-center">
+          <Share2 className="w-5 h-5 mr-3 text-purple-600" />
+          Share this product
+        </h4>
+        <p className="text-sm text-gray-500">
+          Help others discover this amazing product!
+        </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 sm:gap-3 mb-4">
-        {/* WhatsApp Button */}
+      <div className="flex flex-wrap gap-2 mb-4">
         <button
-          onClick={handleWhatsApp}
-          type="button"
-          className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg transition-all duration-300 font-medium shadow-md hover:shadow-lg active:scale-95 cursor-pointer group"
+          onClick={shareOnWhatsApp}
+          className="flex items-center px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors font-medium shadow hover:shadow-md active:scale-95 cursor-pointer"
           title="Share on WhatsApp"
+          type="button"
         >
-          <MessageCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+          <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           <span className="text-sm sm:text-base">WhatsApp</span>
         </button>
 
-        {/* Facebook Button */}
         <button
-          onClick={handleFacebook}
-          type="button"
-          className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-300 font-medium shadow-md hover:shadow-lg active:scale-95 cursor-pointer group"
+          onClick={shareOnFacebook}
+          className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow hover:shadow-md active:scale-95 cursor-pointer"
           title="Share on Facebook"
+          type="button"
         >
-          <Facebook className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+          <Facebook className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           <span className="text-sm sm:text-base">Facebook</span>
         </button>
 
-        {/* Twitter Button */}
         <button
-          onClick={handleTwitter}
-          type="button"
-          className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-sky-500 to-cyan-600 hover:from-sky-600 hover:to-cyan-700 text-white rounded-lg transition-all duration-300 font-medium shadow-md hover:shadow-lg active:scale-95 cursor-pointer group"
+          onClick={shareOnTwitter}
+          className="flex items-center px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-colors font-medium shadow hover:shadow-md active:scale-95 cursor-pointer"
           title="Share on Twitter"
+          type="button"
         >
-          <Twitter className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+          <Twitter className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           <span className="text-sm sm:text-base">Twitter</span>
         </button>
 
-        {/* LinkedIn Button */}
         <button
-          onClick={handleLinkedIn}
-          type="button"
-          className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white rounded-lg transition-all duration-300 font-medium shadow-md hover:shadow-lg active:scale-95 cursor-pointer group"
+          onClick={shareOnLinkedIn}
+          className="flex items-center px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg transition-colors font-medium shadow hover:shadow-md active:scale-95 cursor-pointer"
           title="Share on LinkedIn"
+          type="button"
         >
-          <Linkedin className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+          <Linkedin className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           <span className="text-sm sm:text-base">LinkedIn</span>
         </button>
 
-        {/* Email Button */}
         <button
-          onClick={handleEmail}
-          type="button"
-          className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-lg transition-all duration-300 font-medium shadow-md hover:shadow-lg active:scale-95 cursor-pointer group"
+          onClick={shareViaEmail}
+          className="flex items-center px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium shadow hover:shadow-md active:scale-95 cursor-pointer"
           title="Share via Email"
+          type="button"
         >
-          <Mail className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+          <Mail className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           <span className="text-sm sm:text-base">Email</span>
         </button>
 
-        {/* Copy Link Button */}
         <button
           onClick={handleCopyLink}
-          type="button"
-          className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg transition-all duration-300 font-medium shadow-md hover:shadow-lg active:scale-95 cursor-pointer group relative"
+          className="flex items-center px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium shadow hover:shadow-md active:scale-95 cursor-pointer"
           title="Copy product link"
+          type="button"
         >
           {copied ? (
-            <CheckCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           ) : (
-            <CopyIcon className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+            <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           )}
-          <span className="text-sm sm:text-base">{copied ? 'Copied!' : 'Copy Link'}</span>
+          <span className="text-sm sm:text-base">
+            {copied ? 'Copied!' : 'Copy Link'}
+          </span>
         </button>
-      </div>
 
-      {/* Error Message */}
-      {errorMsg && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center animate-fadeIn">
-          <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
-          <p className="text-sm text-red-700">{errorMsg}</p>
-        </div>
-      )}
-
-      {/* Link Preview */}
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-purple-300 transition-colors">
-        <p className="text-xs text-gray-500 mb-1">Product Link:</p>
-        <div className="flex items-center justify-between">
-          <code className="text-sm text-gray-700 truncate font-mono bg-gray-100 px-2 py-1.5 rounded flex-1 mr-2">
-            {absoluteUrl}
-          </code>
+        {hasNativeShare && (
           <button
-            onClick={openProductInNewTab}
-            className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-medium whitespace-nowrap px-2 py-1 hover:bg-purple-50 rounded transition-colors cursor-pointer"
-            title="Open in new tab"
+            onClick={nativeShare}
+            className="flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow hover:shadow-md active:scale-95 cursor-pointer"
+            title="Share using device share dialog"
+            type="button"
           >
-            <ExternalLink className="w-3 h-3 mr-1" />
-            Open
+            <Share2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+            <span className="text-sm sm:text-base">Share</span>
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Toast */}
-      {copied && (
-        <div className="fixed bottom-4 right-4 z-50 animate-fadeIn">
-          <div className="bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center">
-            <CheckCircle className="w-5 h-5 mr-2" />
-            <span className="font-medium">Link copied to clipboard!</span>
+      {/* URL Preview - Only show when productUrl is available */}
+      {productUrl && (
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-600 mb-2">Product URL:</p>
+          <div className="flex items-center">
+            <div className="flex-1 bg-white border border-gray-300 rounded-l-lg px-3 py-2 overflow-hidden">
+              <code className="text-sm text-gray-700 truncate block font-mono">
+                {productUrl}
+              </code>
+            </div>
+            <button
+              onClick={handleCopyLink}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-r-lg transition-colors font-medium border border-purple-600 cursor-pointer"
+              type="button"
+            >
+              Copy
+            </button>
+            <button
+              onClick={openInNewTab}
+              className="ml-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors font-medium border border-gray-300 cursor-pointer flex items-center"
+              title="Open in new tab"
+              type="button"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      {copied && (
+        <div className="fixed bottom-4 right-4 z-50 animate-fadeIn">
+          <div className="bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center">
+            <CheckCircle className="w-5 h-5 mr-3" />
+            <div>
+              <p className="font-semibold">Link Copied!</p>
+              <p className="text-xs opacity-90">Paste it anywhere to share</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

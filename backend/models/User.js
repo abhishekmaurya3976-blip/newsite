@@ -1,3 +1,4 @@
+// models/User.js - Already complete, no changes needed
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -10,13 +11,26 @@ const UserSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please provide an email'],
     unique: true,
+    sparse: true, // Allows multiple nulls
     lowercase: true,
+    default: null,
     match: [
       /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
       'Please provide a valid email',
     ],
+  },
+  phone: {
+    type: String,
+    required: [true, 'Please provide a phone number'],
+    unique: true,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return /^[0-9]{10}$/.test(v);
+      },
+      message: 'Please provide a valid 10-digit phone number'
+    }
   },
   password: {
     type: String,
@@ -28,11 +42,20 @@ const UserSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
-  phone: String,
-  address: String
+  address: {
+    type: String,
+    default: ''
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
 }, {
   timestamps: true,
 });
+
+// Index for faster queries
+UserSchema.index({ phone: 1, email: 1 });
 
 // Hash password before saving
 UserSchema.pre('save', async function (next) {

@@ -3,6 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Product } from '../../types/product';
+import { useAuth } from '../components/contexts/AuthContext'; // Import useAuth
 
 interface WishlistContextType {
   wishlist: Product[];
@@ -33,34 +34,33 @@ interface WishlistProviderProps {
 export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) => {
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, loginRequired: authLoginRequired } = useAuth(); // Use AuthContext
+  
+  // Derive isAuthenticated from auth context (same as CartContext)
+  const isAuthenticated = !!user;
 
-  // Check authentication on mount
+  // Load wishlist when authentication state changes
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = () => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('userToken');
-      const user = localStorage.getItem('userData');
-      if (token && user) {
-        setIsAuthenticated(true);
-        loadWishlistFromBackend();
-      } else {
-        setIsAuthenticated(false);
-        setWishlist([]);
-      }
+    if (isAuthenticated) {
+      loadWishlistFromBackend();
+    } else {
+      // Clear wishlist if not authenticated
+      setWishlist([]);
     }
-  };
+  }, [isAuthenticated]);
 
   const loginRequired = () => {
     if (typeof window !== 'undefined') {
-      window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+      authLoginRequired?.(); // Use auth context's loginRequired
     }
   };
 
   const loadWishlistFromBackend = async () => {
+    if (!isAuthenticated) {
+      setWishlist([]);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -114,11 +114,8 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
           setWishlist(products);
         }
       } else if (response.status === 401) {
-        // Unauthorized - clear auth
-        localStorage.removeItem('userToken');
-        localStorage.removeItem('userData');
-        setIsAuthenticated(false);
-        setWishlist([]);
+        // Unauthorized - but AuthContext will handle clearing tokens
+        console.log('Unauthorized access to wishlist');
       }
     } catch (error) {
       console.error('Failed to load wishlist from backend:', error);

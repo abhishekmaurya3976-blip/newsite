@@ -1,3 +1,4 @@
+// components/contexts/AuthContext.tsx
 'use client';
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
@@ -7,18 +8,26 @@ interface User {
   id: string;
   name: string;
   email: string;
+  phone: string; // Make phone required
   role: string;
-  phone?: string;
   address?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  register: (userData: any) => Promise<{ success: boolean; message: string }>;
+  login: (phone: string, password: string) => Promise<{ success: boolean; message: string }>;
+  register: (userData: {
+    name: string;
+    email: string;
+    phone: string; // Phone is now required for registration
+    password: string;
+    address?: string;
+  }) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   loading: boolean;
-  loginRequired: () => void; // Add this
+  loginRequired: () => void;
+  updateProfile: (profileData: Partial<User>) => Promise<{ success: boolean; message: string }>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>; // Add this
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,20 +64,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginRequired = () => {
     if (typeof window !== 'undefined') {
-      // Redirect to login with return URL
       const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
       router.push(`/login?redirect=${returnUrl}`);
     }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
+  const login = async (phone: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
+      // Validate phone number
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phone)) {
+        return { success: false, message: 'Please enter a valid 10-digit phone number' };
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ phone, password }), // Changed from email to phone
       });
 
       const data = await response.json();
@@ -80,7 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('userData', JSON.stringify(user));
         setUser(user);
         
-        // Redirect to the page they came from or home
+        // Refresh cart and wishlist contexts
+        window.dispatchEvent(new Event('authStateChanged'));
+        
+        // Redirect
         const urlParams = new URLSearchParams(window.location.search);
         const redirect = urlParams.get('redirect');
         
@@ -100,8 +117,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (userData: any): Promise<{ success: boolean; message: string }> => {
+  const register = async (userData: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    address?: string;
+  }): Promise<{ success: boolean; message: string }> => {
     try {
+      // Validate phone number
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(userData.phone)) {
+        return { success: false, message: 'Please enter a valid 10-digit phone number' };
+      }
+
+      // Validate email (optional but recommended)
+      if (userData.email && !/\S+@\S+\.\S+/.test(userData.email)) {
+        return { success: false, message: 'Please enter a valid email address' };
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/register`, {
         method: 'POST',
         headers: {
@@ -119,7 +153,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('userData', JSON.stringify(user));
         setUser(user);
         
-        // Redirect to home after registration
+        // Refresh cart and wishlist contexts
+        window.dispatchEvent(new Event('authStateChanged'));
+        
         router.push('/');
         
         return { success: true, message: 'Registration successful' };
@@ -132,15 +168,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (profileData: Partial<User>): Promise<{ success: boolean; message: string }> => {
+    try {
+      const token = localStorage.getItem('userToken');
+      if (!token) {
+        return { success: false, message: 'Please login to update profile' };
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        localStorage.setItem('userData', JSON.stringify(data.user));
+        setUser(data.user);
+        return { success: true, message: 'Profile updated successfully' };
+      } else {
+        return { success: false, message: data.message || 'Profile update failed' };
+      }
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      return { success: false, message: 'Profile update failed. Please try again.' };
+    }
+  };
+
+  // Add this function
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const token = localStorage.getItem('userToken');
+      if (!token) {
+        return { success: false, message: 'Please login to change password' };
+      }
+
+      // Validate new password
+      if (newPassword.length < 6) {
+        return { success: false, message: 'New password must be at least 6 characters' };
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return { success: true, message: data.message || 'Password changed successfully' };
+      } else {
+        return { success: false, message: data.message || 'Password change failed' };
+      }
+    } catch (error: any) {
+      console.error('Change password error:', error);
+      return { success: false, message: error.message || 'Password change failed. Please try again.' };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('userToken');
     localStorage.removeItem('userData');
     setUser(null);
+    
+    // Refresh cart and wishlist contexts
+    window.dispatchEvent(new Event('authStateChanged'));
+    
     router.push('/');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, loginRequired }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      register, 
+      logout, 
+      loading, 
+      loginRequired,
+      updateProfile,
+      changePassword // Add this to the provider value
+    }}>
       {children}
     </AuthContext.Provider>
   );

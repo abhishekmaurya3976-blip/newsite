@@ -174,10 +174,6 @@ export default function UserOrdersPage() {
               Home
             </Link>
             <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />
-            <Link href="/user/dashboard" className="hover:text-purple-600 transition-colors">
-              Dashboard
-            </Link>
-            <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />
             <span className="text-gray-900 font-medium">My Orders</span>
           </nav>
         </div>
