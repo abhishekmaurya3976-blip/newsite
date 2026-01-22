@@ -25,7 +25,7 @@ connectDB();
 
 // ✅ FIXED CORS Configuration
 const allowedOrigins = [
-  'hhttps://artplzaa.netlify.app',
+  'https://artplzaa.netlify.app/',
   'http://localhost:3000',
   // Optional: add more if needed
   process.env.FRONTEND_URL 
