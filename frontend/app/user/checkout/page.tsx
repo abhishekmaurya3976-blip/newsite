@@ -375,9 +375,9 @@ export default function CheckoutPage() {
             </p>
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 mb-8 max-w-md mx-auto">
               <p className="text-gray-800 font-medium mb-2">Order Details</p>
-              <p className="text-gray-600 mb-1">
+              {/* <p className="text-gray-600 mb-1">
                 Order ID: <span className="font-bold">{orderId || `ORD-${Date.now().toString().slice(-8)}`}</span>
-              </p>
+              </p> */}
               <p className="text-gray-600 mb-1">
                 Payment: <span className="font-bold">{formData.paymentMethod === 'cod' ? 'Cash on Delivery' : 
                                    formData.paymentMethod === 'upi' ? 'UPI' : 'Card'}</span>
