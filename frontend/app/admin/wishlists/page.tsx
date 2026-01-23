@@ -749,12 +749,12 @@ export default function AdminWishlistsPage() {
                           </p>
                         </div>
                       </div>
-                      <Link
+                      {/* <Link
                         href={`/admin/users/${user.userId}`}
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                       >
                         Profile
-                      </Link>
+                      </Link> */}
                     </div>
                   ))}
                 </div>

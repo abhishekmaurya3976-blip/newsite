@@ -96,21 +96,6 @@ export default function AdminSidebar() {
       href: '/admin/wishlists', 
       color: 'pink'  // Added Wishlists menu item
     },
-    { 
-      title: 'Blogs', 
-      icon: FileText, 
-      color: 'violet', 
-      subItems: [
-        { title: 'All Blogs', icon: List, href: '/admin/blogs' },
-        { title: 'Add Blog', icon: PlusCircle, href: '/admin/blogs/new' }
-      ] 
-    },
-    { 
-      title: 'Settings', 
-      icon: Settings, 
-      href: '/admin/settings', 
-      color: 'gray' 
-    }
   ];
 
   const getColorClasses = (color: string, isActive: boolean = false) => {

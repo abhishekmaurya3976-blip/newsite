@@ -1,3 +1,4 @@
+// app/page.tsx - FULL UPDATED VERSION
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -25,6 +26,7 @@ import { ratingApi } from './lib/api/ratings';
 import { Category } from '../types/category';
 import { Product } from '../types/product';
 import ProductCard from './components/shared/ProductCard';
+import CustomerReviewsSlider from './components/shared/CustomerReviewsSlider'; // NEW IMPORT
 
 // Skeleton Components
 const SliderSkeleton = () => (
@@ -53,158 +55,6 @@ const ProductCardSkeleton = () => (
     <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg animate-pulse w-1/2"></div>
   </div>
 );
-
-// Top Rated Product Card with Enhanced Display
-const TopRatedProductCard = ({ product, rating }: { product: Product; rating: { average: number; count: number } }) => {
-  const isFiveStar = rating.average >= 4.5;
-  const isFourStar = rating.average >= 4.0 && rating.average < 4.5;
-  
-  // Safely get category name - handle both object and string
-  const getCategoryName = () => {
-    if (!product.category) return '';
-    if (typeof product.category === 'string') return product.category;
-    if (typeof product.category === 'object') {
-      return (product.category as any).name || '';
-    }
-    return '';
-  };
-  
-  const categoryName = getCategoryName();
-  
-  // Safely get product slug
-  const getProductSlug = () => {
-    if (product.slug && typeof product.slug === 'string' && product.slug.trim() !== '') {
-      return product.slug;
-    }
-    // Use non-null assertion since we know product has _id at this point
-    return product._id!;
-  };
-
-  return (
-    <Link href={`/products/${getProductSlug()}`} className="group block">
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 h-full">
-        {/* Premium Badge */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-2">
-            {isFiveStar ? (
-              <div className="px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-xs font-bold rounded-full flex items-center shadow-lg">
-                <Crown className="w-3 h-3 mr-1.5" />
-                5-Star Rated
-              </div>
-            ) : (
-              <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full flex items-center shadow-lg">
-                <Star className="w-3 h-3 mr-1.5" />
-                4-Star Rated
-              </div>
-            )}
-            <div className="px-2 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 rounded-full text-xs font-bold border border-green-200">
-              {rating.average.toFixed(1)}/5
-            </div>
-          </div>
-          
-          {/* Review Count */}
-          <div className="flex items-center text-sm text-gray-600">
-            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 mr-1" />
-            <span className="font-bold">{rating.count}</span>
-          </div>
-        </div>
-        
-        {/* Product Image */}
-        <div className="relative h-48 md:h-56 rounded-xl overflow-hidden mb-4 bg-gradient-to-br from-gray-50 to-gray-100">
-          {product.images?.[0]?.url ? (
-            <Image
-              src={product.images[0].url}
-              alt={product.name}
-              fill
-              className="object-cover group-hover:scale-110 transition-transform duration-500"
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Package className="w-12 h-12 text-gray-300" />
-            </div>
-          )}
-          {/* Overlay Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
-          
-          {/* Rating Badge Overlay */}
-          <div className="absolute top-4 right-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-xl ${
-              isFiveStar 
-                ? 'bg-gradient-to-r from-yellow-400 to-amber-500' 
-                : 'bg-gradient-to-r from-blue-400 to-indigo-500'
-            }`}>
-              <span className="text-white font-bold text-sm">
-                {rating.average.toFixed(1)}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Product Details */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-purple-600 transition-colors">
-            {product.name}
-          </h3>
-          
-          {categoryName && (
-            <p className="text-sm text-gray-500 flex items-center">
-              <span className="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium">
-                {categoryName}
-              </span>
-            </p>
-          )}
-          
-          {/* Rating Stars */}
-          <div className="flex items-center">
-            <div className="flex items-center mr-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={`w-4 h-4 ${
-                    star <= Math.floor(rating.average)
-                      ? 'text-yellow-500 fill-yellow-500'
-                      : star === Math.ceil(rating.average) && rating.average % 1 !== 0
-                      ? 'text-yellow-500 fill-yellow-500 opacity-50'
-                      : 'text-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-            <span className="text-sm font-medium text-gray-700">
-              ({rating.count} review{rating.count !== 1 ? 's' : ''})
-            </span>
-          </div>
-          
-          {/* Price */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-            <div>
-              <span className="text-xl font-bold text-gray-900">
-                ₹{product.price?.toLocaleString() || '0'}
-              </span>
-              {/* Check if there's a sale price or compareAtPrice */}
-              {(product as any).compareAtPrice && (product as any).compareAtPrice > product.price && (
-                <span className="text-sm text-gray-500 line-through ml-2">
-                  ₹{((product as any).compareAtPrice).toLocaleString()}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center text-green-600 text-sm font-bold">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              Top Rated
-            </div>
-          </div>
-          
-          {/* Verified Purchase Stats */}
-          <div className="flex items-center text-sm text-gray-600 pt-2 border-t border-gray-100">
-            <BadgeCheck className="w-4 h-4 text-green-500 mr-2" />
-            <span className="font-medium">Verified Purchase Reviews</span>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-};
 
 // TopBar — centered, compact & attractive on mobile
 const TopBar = () => (
@@ -336,8 +186,7 @@ const PremiumSlider = ({
                       </Link>
                       <Link
                         href="/categories"
-                        className="inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-transparent border-2 border-white text-white rounded-xl hover:bg-white/10 transition-all duration-300 font-bold text-base md:text-lg min-w-[180px]"
-                      >
+                        className="inline-flex items-center justify-center px-6 md:px-8 py-3 md:py-4 bg-transparent border-2 border-white text-white rounded-xl hover:bg-white/10 transition-all duration-300 font-bold text-base md:text-lg min-w-[180px]"                    >
                         <Crown className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
                         Collections
                       </Link>
@@ -395,77 +244,11 @@ export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [bestSellerProducts, setBestSellerProducts] = useState<Product[]>([]);
   const [newArrivalProducts, setNewArrivalProducts] = useState<Product[]>([]);
-  const [topRatedProducts, setTopRatedProducts] = useState<{product: Product; rating: {average: number; count: number}}[]>([]);
 
   // Track loading states separately
   const [isSliderLoaded, setIsSliderLoaded] = useState(false);
   const [isCategoriesLoaded, setIsCategoriesLoaded] = useState(false);
   const [isProductsLoaded, setIsProductsLoaded] = useState(false);
-  const [isTopRatedLoaded, setIsTopRatedLoaded] = useState(false);
-
-  // Function to fetch top rated products - FIXED VERSION
-  const fetchTopRatedProducts = useCallback(async () => {
-    try {
-      setIsTopRatedLoaded(false);
-      
-      // First get all products
-      const allProducts = await productApi.getProducts({ 
-        limit: 50, 
-        isActive: true,
-        sortBy: 'popularity',
-        sortOrder: 'desc'
-      });
-
-      if (!allProducts.products || allProducts.products.length === 0) {
-        setTopRatedProducts([]);
-        setIsTopRatedLoaded(true);
-        return;
-      }
-
-      // Filter products that have an _id
-      const validProducts = allProducts.products.filter((product: Product) => 
-        product._id && typeof product._id === 'string' && product._id.trim() !== ''
-      );
-
-      if (validProducts.length === 0) {
-        setTopRatedProducts([]);
-        setIsTopRatedLoaded(true);
-        return;
-      }
-
-      // Get ratings for each valid product
-      const topRated = [];
-      for (const product of validProducts) {
-        try {
-          // Use non-null assertion since we've already filtered for valid products
-          const ratingData = await ratingApi.getProductRating(product._id!);
-          if (ratingData && ratingData.average >= 4.0) {
-            topRated.push({
-              product,
-              rating: {
-                average: ratingData.average || 0,
-                count: ratingData.count || 0
-              }
-            });
-          }
-        } catch (error) {
-          console.error(`Error fetching rating for product ${product._id}:`, error);
-        }
-
-        // Limit to 8 products
-        if (topRated.length >= 8) break;
-      }
-
-      // Sort by highest rating
-      topRated.sort((a, b) => b.rating.average - a.rating.average);
-      setTopRatedProducts(topRated);
-    } catch (error) {
-      console.error('Error fetching top rated products:', error);
-      setTopRatedProducts([]);
-    } finally {
-      setIsTopRatedLoaded(true);
-    }
-  }, []);
 
   // Fetch data progressively
   const fetchInitialData = useCallback(async () => {
@@ -507,17 +290,14 @@ export default function HomePage() {
       }
       setIsProductsLoaded(true);
 
-      // Step 4: Fetch top rated products separately
-      fetchTopRatedProducts();
     } catch (error) {
       console.error('Unexpected error:', error);
       // Still mark as loaded to show content
       setIsSliderLoaded(true);
       setIsCategoriesLoaded(true);
       setIsProductsLoaded(true);
-      setIsTopRatedLoaded(true);
     }
-  }, [fetchTopRatedProducts]);
+  }, []);
 
   useEffect(() => {
     fetchInitialData();
@@ -826,52 +606,29 @@ export default function HomePage() {
             )}
           </section>
 
-          {/* NEW: Top Rated Products (4 & 5 Star Only) */}
-          <section className="mb-12 md:mb-16 lg:mb-20">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
-              <div className="mb-4 sm:mb-0">
-                <div className="flex items-center mb-2">
-                  <div className="w-8 h-1 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-full mr-3"></div>
-                  <span className="text-yellow-600 font-bold text-xs md:text-sm uppercase tracking-wider">Top Rated</span>
-                </div>
-                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Top <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-amber-500">Rated</span> Products
-                </h2>
-                <p className="text-gray-600 mt-1">Only 4 & 5 star rated products</p>
-              </div>
-              {isTopRatedLoaded && topRatedProducts.length > 0 && (
-                <Link
-                  href="/products?minRating=4"
-                  className="inline-flex items-center bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100 px-5 md:px-6 py-3 rounded-xl font-semibold text-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl group border border-gray-200"
-                >
-                  View All
-                  <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              )}
-            </div>
+          {/* NEW: Customer Reviews Slider - 4 & 5 Star Only */}
+<section className="mb-12 md:mb-16 lg:mb-20">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
+      <div className="mb-4 sm:mb-0">
+        <div className="flex items-center mb-2">
+          <div className="w-8 h-1 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-full mr-3"></div>
+          <span className="text-yellow-600 font-bold text-xs md:text-sm uppercase tracking-wider">Customer Reviews</span>
+        </div>
+        <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
+          Top <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-amber-500">Customer Reviews</span>
+        </h2>
+        <p className="text-gray-600 mt-1">Only 4 & 5 star verified reviews</p>
+      </div>
 
-            {!isTopRatedLoaded ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[...Array(4)].map((_, i) => (
-                  <ProductCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : topRatedProducts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {topRatedProducts.map(({ product, rating }) => (
-                  <div key={product._id} className="transform hover:-translate-y-1 transition-transform duration-300">
-                    <TopRatedProductCard product={product} rating={rating} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-2xl border-2 border-dashed border-yellow-200">
-                <Star className="w-12 h-12 md:w-16 md:h-16 text-yellow-300 mx-auto mb-4" />
-                <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Top Rated Products Coming Soon</h3>
-                <p className="text-gray-600">Products with 4 & 5 star ratings will appear here</p>
-              </div>
-            )}
-          </section>
+    </div>
+  </div>
+  
+  {/* CustomerReviewsSlider should be outside the container to be full width */}
+  <div className="w-full overflow-hidden">
+    <CustomerReviewsSlider />
+  </div>
+</section>
 
           {/* Premium Features */}
           {(isCategoriesLoaded || isProductsLoaded) && (
