@@ -12,7 +12,7 @@ export default function Footer() {
     company: [
       { name: 'Our Story', href: '/about' },
       { name: 'Privacy Policy', href: '/policy/privacy' },
-      { name: 'Terms of Service', href: '/policy/terms' },
+      { name: 'Terms of Service', href: '/policy/shipping' },
     ],
   };
 

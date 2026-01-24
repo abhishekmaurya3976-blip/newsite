@@ -575,7 +575,7 @@ export default function Register() {
                 </div>
 
                 <div className="space-y-4">
-                  <button
+                  {/* <button
                     type="submit"
                     disabled={loading}
                     className="w-full group relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-2xl py-5 px-6 font-bold text-lg transition-all duration-300 hover:shadow-xl hover:shadow-amber-300/50 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
@@ -594,7 +594,7 @@ export default function Register() {
                         </>
                       )}
                     </div>
-                  </button>
+                  </button> */}
 
                   <div className="text-center pt-4">
                     <p className="text-gray-600">
