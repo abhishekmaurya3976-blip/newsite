@@ -27,7 +27,7 @@ export default function Footer() {
         {/* Logo Section */}
         <div className="flex flex-col items-center justify-center mb-16 text-center">
           <Link href="/" className="text-4xl font-serif font-bold text-white tracking-wider mb-4">
-            Art<span className="text-amber-400">Plazaa</span>
+          Art <span className="text-amber-400">Plazaa</span>
           </Link>
           <p className="text-gray-400 text-sm max-w-xl italic font-light">
             Premium art supplies curated for the discerning artist. Where creativity meets excellence.
@@ -177,7 +177,7 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-center md:text-left mb-4 md:mb-0">
               <p className="text-gray-500 text-sm">
-                © {currentYear} ArtPlazaa. All rights reserved.
+                © {currentYear} Art Plazaa. All rights reserved.
               </p>
               <p className="text-gray-600 text-xs mt-1">
                 All products and materials are trademarks of their respective owners.
