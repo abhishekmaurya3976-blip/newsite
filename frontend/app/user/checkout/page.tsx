@@ -738,7 +738,7 @@ export default function CheckoutPage() {
                   </h2>
                   
                   <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
-                    <label className="flex items-center p-3 md:p-4 border-2 border-purple-500 rounded-lg md:rounded-xl cursor-pointer bg-gradient-to-r from-purple-50 to-pink-50">
+                    {/* <label className="flex items-center p-3 md:p-4 border-2 border-purple-500 rounded-lg md:rounded-xl cursor-pointer bg-gradient-to-r from-purple-50 to-pink-50">
                       <input
                         type="radio"
                         name="paymentMethod"
@@ -885,7 +885,7 @@ export default function CheckoutPage() {
                           <p className="text-xs text-gray-500 mt-1">e.g., 9876543210@oksbi, username@ybl</p>
                         </div>
                       </div>
-                    )}
+                    )} */}
                     
                     <label className="flex items-center p-3 md:p-4 border border-gray-300 rounded-lg md:rounded-xl cursor-pointer hover:bg-gray-50">
                       <input
@@ -1141,7 +1141,7 @@ export default function CheckoutPage() {
                 </div>
                 
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Tax (18% GST)</span>
+                  <span className="text-gray-600">Inclusive of all taxes</span>
                   <span className="font-medium">₹{(totalPrice * 0.18).toFixed(2)}</span>
                 </div>
                 
@@ -1196,7 +1196,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <Shield className="w-4 h-4 mr-3 text-green-600" />
-                    <span>30-day return policy</span>
+                    <span>7 day return policy</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <Package className="w-4 h-4 mr-3 text-purple-600" />

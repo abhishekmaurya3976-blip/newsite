@@ -1,7 +1,7 @@
 // app/components/shared/CustomerReviewsSlider.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
@@ -10,15 +10,16 @@ import {
   User, 
   Calendar, 
   CheckCircle,
-  ChevronLeft,
-  ChevronRight,
   MessageCircle,
-  Sparkles,
-  Crown,
-  Award,
   ThumbsUp,
   Package,
   ArrowRight,
+  Shield,
+  Award,
+  TrendingUp,
+  Filter,
+  Sparkles,
+  Trophy,
   Heart
 } from 'lucide-react';
 import { ratingApi } from '../../lib/api/ratings';
@@ -37,12 +38,15 @@ interface Review {
   helpfulCount: number;
   verifiedPurchase: boolean;
   createdAt: string;
-  product?: {
-    _id: string;
-    name: string;
-    images?: Array<{ url: string }>;
-    slug?: string;
-  };
+}
+
+interface Product {
+  _id: string;
+  name: string;
+  images?: Array<{ url: string }>;
+  slug?: string;
+  price?: number;
+  category?: string;
 }
 
 interface ReviewWithProduct extends Review {
@@ -50,6 +54,7 @@ interface ReviewWithProduct extends Review {
   productImage?: string;
   productSlug?: string;
   productPrice?: number;
+  productCategory?: string;
 }
 
 const ReviewCardSkeleton = () => (
@@ -74,20 +79,25 @@ const ReviewCardSkeleton = () => (
 
 const CustomerReviewsSlider = () => {
   const [reviews, setReviews] = useState<ReviewWithProduct[]>([]);
+  const [filteredReviews, setFilteredReviews] = useState<ReviewWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [autoPlay, setAutoPlay] = useState(true);
+  const [selectedRating, setSelectedRating] = useState<number | null>(null);
+  const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
+  const [stats, setStats] = useState({
+    totalReviews: 0,
+    averageRating: 0,
+    fiveStarCount: 0,
+    fourStarCount: 0,
+    verifiedCount: 0
+  });
 
   const fetchTopReviews = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Get all products first
+      // First, get popular products
       const productsResponse = await productApi.getProducts({ 
-        limit: 50, 
+        limit: 30, 
         isActive: true,
         sortBy: 'popularity',
         sortOrder: 'desc'
@@ -95,35 +105,34 @@ const CustomerReviewsSlider = () => {
 
       if (!productsResponse.products || productsResponse.products.length === 0) {
         setReviews([]);
+        setFilteredReviews([]);
         setLoading(false);
         return;
       }
 
-      // Filter products with _id and get reviews for each
-      const validProducts = productsResponse.products.filter(
-        product => product._id && typeof product._id === 'string'
-      );
-
       const allReviews: ReviewWithProduct[] = [];
 
-      // Fetch reviews for each product (limit to 12 products for performance)
-      for (const product of validProducts.slice(0, 12)) {
+      // Fetch reviews for each product
+      for (const product of productsResponse.products) {
         try {
-          const reviewsData = await ratingApi.getProductReviews(product._id!, 1, 10);
+          if (!product._id) continue;
           
-          if (reviewsData?.reviews) {
-            // Filter for 4 & 5 star reviews
-            const topReviews = reviewsData.reviews.filter(
-              (review: any) => review.rating >= 4
+          const reviewsData = await ratingApi.getProductReviews(product._id, 1, 10);
+          
+          if (reviewsData?.reviews && Array.isArray(reviewsData.reviews)) {
+            // Filter for only 4 & 5 star reviews
+            const highRatedReviews = reviewsData.reviews.filter((review: any) => 
+              review.rating >= 4
             );
 
-            // Add product info to reviews
-            const reviewsWithProduct = topReviews.map((review: any) => ({
+            // Add product info to each review
+            const reviewsWithProduct = highRatedReviews.map((review: any) => ({
               ...review,
               productName: product.name,
               productImage: product.images?.[0]?.url,
               productSlug: product.slug || product._id,
-              productPrice: product.price
+              productPrice: product.price,
+              productCategory: product.category
             }));
 
             allReviews.push(...reviewsWithProduct);
@@ -133,20 +142,39 @@ const CustomerReviewsSlider = () => {
         }
 
         // Stop if we have enough reviews
-        if (allReviews.length >= 30) break;
+        if (allReviews.length >= 50) break;
       }
 
-      // Sort by rating (highest first) and then by helpfulCount
+      // Sort by rating (highest first), then by date (newest first)
       allReviews.sort((a, b) => {
         if (b.rating !== a.rating) return b.rating - a.rating;
-        return (b.helpfulCount || 0) - (a.helpfulCount || 0);
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
 
-      // Take top 24 reviews
-      setReviews(allReviews.slice(0, 24));
+      setReviews(allReviews);
+      setFilteredReviews(allReviews);
+
+      // Calculate stats for 4 & 5 star reviews only
+      const fiveStarReviews = allReviews.filter(review => review.rating === 5);
+      const fourStarReviews = allReviews.filter(review => review.rating === 4);
+      const totalReviews = allReviews.length;
+      const averageRating = totalReviews > 0 
+        ? allReviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
+        : 0;
+      const verifiedCount = allReviews.filter(review => review.verifiedPurchase).length;
+
+      setStats({
+        totalReviews,
+        averageRating: parseFloat(averageRating.toFixed(1)),
+        fiveStarCount: fiveStarReviews.length,
+        fourStarCount: fourStarReviews.length,
+        verifiedCount
+      });
+
     } catch (error) {
-      console.error('Error fetching top reviews:', error);
+      console.error('Error fetching reviews:', error);
       setReviews([]);
+      setFilteredReviews([]);
     } finally {
       setLoading(false);
     }
@@ -156,81 +184,36 @@ const CustomerReviewsSlider = () => {
     fetchTopReviews();
   }, [fetchTopReviews]);
 
-  // Auto-play slider
   useEffect(() => {
-    if (!autoPlay || reviews.length <= 1 || loading) return;
-
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % Math.max(1, reviews.length - getSlidesPerView() + 1));
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [reviews.length, loading, autoPlay]);
-
-  const nextSlide = useCallback(() => {
-    if (reviews.length === 0) return;
-    const slidesPerView = getSlidesPerView();
-    const maxIndex = Math.max(0, reviews.length - slidesPerView);
-    setCurrentIndex((prev) => (prev + 1) % (maxIndex + 1));
-  }, [reviews.length]);
-
-  const prevSlide = useCallback(() => {
-    if (reviews.length === 0) return;
-    const slidesPerView = getSlidesPerView();
-    const maxIndex = Math.max(0, reviews.length - slidesPerView);
-    setCurrentIndex((prev) => (prev - 1 + (maxIndex + 1)) % (maxIndex + 1));
-  }, [reviews.length]);
-
-  const goToSlide = useCallback((index: number) => {
-    setCurrentIndex(index);
-  }, []);
-
-  // Touch handlers for mobile swipe
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    let filtered = [...reviews];
     
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      nextSlide();
-    } else if (isRightSwipe) {
-      prevSlide();
+    if (selectedRating !== null) {
+      filtered = filtered.filter(review => review.rating === selectedRating);
     }
-
-    setTouchStart(null);
-    setTouchEnd(null);
-  };
-
-  // Calculate slides per view based on screen width
-  const getSlidesPerView = () => {
-    if (typeof window === 'undefined') return 1;
     
-    if (window.innerWidth >= 1280) return 4; // xl screens - 4 reviews
-    if (window.innerWidth >= 1024) return 3; // lg screens - 3 reviews
-    if (window.innerWidth >= 768) return 2;  // md screens - 2 reviews
-    return 1;  // sm screens - 1 review
-  };
+    if (showVerifiedOnly) {
+      filtered = filtered.filter(review => review.verifiedPurchase);
+    }
+    
+    setFilteredReviews(filtered);
+  }, [selectedRating, showVerifiedOnly, reviews]);
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Recently';
+      
+      const now = new Date();
+      const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffInDays === 0) return 'Today';
+      if (diffInDays === 1) return 'Yesterday';
+      if (diffInDays < 7) return `${diffInDays} days ago`;
+      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return 'Recently';
+    }
   };
 
   const getStarClass = (rating: number, starIndex: number) => {
@@ -243,8 +226,8 @@ const CustomerReviewsSlider = () => {
     return (
       <div className="py-8 md:py-12 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
               <ReviewCardSkeleton key={i} />
             ))}
           </div>
@@ -260,132 +243,206 @@ const CustomerReviewsSlider = () => {
           <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-r from-yellow-100 to-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <MessageCircle className="w-10 h-10 md:w-12 md:h-12 text-yellow-600" />
           </div>
-          <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">No Reviews Yet</h3>
+          <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">No 4 & 5 Star Reviews Yet</h3>
           <p className="text-gray-600 mb-8 max-w-md mx-auto">
-            Be the first to share your experience! Your review will help other customers.
+            Our customers' top-rated experiences will appear here. Share your 5-star experience!
           </p>
         </div>
       </div>
     );
   }
 
-  const slidesPerView = getSlidesPerView();
-  const maxIndex = Math.max(0, reviews.length - slidesPerView);
-  const current = Math.min(currentIndex, maxIndex);
-
   return (
-    <div className="relative py-8 md:py-12 bg-gradient-to-b from-white via-gray-50/50 to-white">
-      {/* Slider Container */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Navigation Buttons */}
-        <div className="hidden lg:block">
-          <button
-            onClick={prevSlide}
-            onMouseEnter={() => setAutoPlay(false)}
-            onMouseLeave={() => setAutoPlay(true)}
-            className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-4 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-full p-3 hover:bg-white transition-all duration-300 z-20 group shadow-xl hover:shadow-2xl"
-            aria-label="Previous reviews"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-800 group-hover:scale-110 transition-transform" />
-          </button>
-          <button
-            onClick={nextSlide}
-            onMouseEnter={() => setAutoPlay(false)}
-            onMouseLeave={() => setAutoPlay(true)}
-            className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-4 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-full p-3 hover:bg-white transition-all duration-300 z-20 group shadow-xl hover:shadow-2xl"
-            aria-label="Next reviews"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-800 group-hover:scale-110 transition-transform" />
-          </button>
+    <div className="py-8 md:py-12 bg-gradient-to-b from-white via-gray-50/50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header with Stats */}
+        <div className="mb-8 md:mb-12">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+            <div>
+              <div className="flex items-center mb-2">
+              </div>
+              <p className="text-gray-600">
+                Showing only 4 & 5 star reviews from satisfied customers
+              </p>
+            </div>
+            
+            <div className="mt-4 md:mt-0 flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white px-4 py-2 rounded-xl flex items-center shadow-lg">
+                <Star className="w-5 h-5 mr-2 fill-current" />
+                <span className="font-bold text-lg">{stats.averageRating}</span>
+                <span className="ml-1">/5</span>
+              </div>
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold">{stats.totalReviews}</span> top reviews
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200 p-4 shadow-sm">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-yellow-100 to-amber-100 rounded-lg flex items-center justify-center mr-3">
+                  <Trophy className="w-5 h-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">5 Star Reviews</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.fiveStarCount}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4 shadow-sm">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                  <Star className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">4 Star Reviews</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.fourStarCount}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 p-4 shadow-sm">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center mr-3">
+                  <Shield className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Verified Purchases</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.verifiedCount}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 p-4 shadow-sm">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg flex items-center justify-center mr-3">
+                  <Heart className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Customer Satisfaction</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {stats.totalReviews > 0 
+                      ? Math.round((stats.fiveStarCount / stats.totalReviews) * 100) 
+                      : 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <div className="flex items-center">
+              <Filter className="w-4 h-4 text-gray-400 mr-2" />
+              <span className="text-sm font-medium text-gray-700">Filter by:</span>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedRating(null)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedRating === null
+                    ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All Top Reviews
+              </button>
+              
+              {/* Only show 5 and 4 star options */}
+              <button
+                onClick={() => setSelectedRating(selectedRating === 5 ? null : 5)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+                  selectedRating === 5
+                    ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white shadow-md'
+                    : 'bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-800 hover:bg-yellow-100 border border-yellow-200'
+                }`}
+              >
+                <Star className="w-3 h-3 mr-1 fill-current" />
+                5 Stars ({stats.fiveStarCount})
+              </button>
+              
+              <button
+                onClick={() => setSelectedRating(selectedRating === 4 ? null : 4)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+                  selectedRating === 4
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
+                    : 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 hover:bg-blue-100 border border-blue-200'
+                }`}
+              >
+                <Star className="w-3 h-3 mr-1 fill-current" />
+                4 Stars ({stats.fourStarCount})
+              </button>
+              
+              <button
+                onClick={() => setShowVerifiedOnly(!showVerifiedOnly)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+                  showVerifiedOnly
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
+                    : 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 hover:bg-green-100 border border-green-200'
+                }`}
+              >
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Verified Only ({stats.verifiedCount})
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Reviews Slider */}
-        <div
-          ref={containerRef}
-          className="relative overflow-hidden"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <div
-            className="flex transition-transform duration-500 ease-out gap-4 md:gap-6"
-            style={{
-              transform: `translateX(-${current * (100 / slidesPerView)}%)`,
-            }}
-          >
-            {reviews.map((review, index) => (
-              <div
-                key={`${review._id}-${index}`}
-                className="flex-shrink-0 transition-all duration-300"
-                style={{
-                  width: `${100 / slidesPerView}%`,
-                  minWidth: `${100 / slidesPerView}%`,
-                }}
-              >
+        {/* Reviews Grid */}
+        {filteredReviews.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gradient-to-r from-yellow-100 to-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Filter className="w-8 h-8 text-yellow-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews match your filters</h3>
+            <p className="text-gray-600">Try adjusting your filter criteria</p>
+            <button
+              onClick={() => {
+                setSelectedRating(null);
+                setShowVerifiedOnly(false);
+              }}
+              className="mt-4 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity shadow-md"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-full mr-2"></div>
+                <p className="text-gray-600">
+                  Showing <span className="font-semibold text-gray-900">{filteredReviews.length}</span> of{' '}
+                  <span className="font-semibold text-gray-900">{reviews.length}</span> top-rated reviews
+                </p>
+              </div>
+              {selectedRating !== null && (
+                <button
+                  onClick={() => setSelectedRating(null)}
+                  className="text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center"
+                >
+                  <Star className="w-3 h-3 mr-1" />
+                  Show all {selectedRating === 5 ? '5-star' : '4-star'} reviews
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredReviews.map((review) => (
                 <ReviewCard 
+                  key={review._id} 
                   review={review} 
                   formatDate={formatDate} 
                   getStarClass={getStarClass}
-                  compact={slidesPerView > 1}
                 />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Mobile Navigation Buttons */}
-        <div className="lg:hidden flex justify-center space-x-4 mt-6">
-          <button
-            onClick={prevSlide}
-            className="bg-white border border-gray-300 rounded-full p-3 hover:bg-gray-50 transition-all duration-300 shadow-lg"
-            aria-label="Previous review"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-800" />
-          </button>
-          <button
-            onClick={nextSlide}
-            className="bg-white border border-gray-300 rounded-full p-3 hover:bg-gray-50 transition-all duration-300 shadow-lg"
-            aria-label="Next review"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-800" />
-          </button>
-        </div>
-
-        {/* Dots Indicator */}
-        {maxIndex > 0 && (
-          <div className="flex justify-center space-x-2 mt-6">
-            {Array.from({ length: maxIndex + 1 }).map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
-                  current === index
-                    ? 'bg-gradient-to-r from-yellow-500 to-amber-500 scale-125 shadow-lg'
-                    : 'bg-gray-300 hover:bg-gray-400'
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-              />
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
-
-        {/* Auto-play toggle */}
-        <div className="flex items-center justify-center mt-4 space-x-2">
-          <div className="w-8 h-4 bg-gray-200 rounded-full relative">
-            <button
-              onClick={() => setAutoPlay(!autoPlay)}
-              className={`absolute top-0 w-4 h-4 rounded-full transition-all duration-300 ${
-                autoPlay
-                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 right-0'
-                  : 'bg-gray-400 left-0'
-              }`}
-              aria-label={autoPlay ? "Pause auto-play" : "Start auto-play"}
-            />
-          </div>
-          <span className="text-xs text-gray-600">
-            {autoPlay ? 'Auto-play ON' : 'Auto-play OFF'}
-          </span>
-        </div>
       </div>
     </div>
   );
@@ -396,24 +453,28 @@ const ReviewCard = ({
   review, 
   formatDate, 
   getStarClass,
-  compact = false 
 }: { 
   review: ReviewWithProduct; 
   formatDate: (date: string) => string;
   getStarClass: (rating: number, starIndex: number) => string;
-  compact?: boolean;
 }) => {
   const isFiveStar = review.rating === 5;
   
   return (
-    <div className={`bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-lg hover:shadow-xl transition-all duration-300 h-full ${
-      isFiveStar ? 'border-yellow-200 hover:border-yellow-300' : 'border-blue-200 hover:border-blue-300'
+    <div className={`bg-white rounded-2xl border p-5 shadow-sm hover:shadow-md transition-all duration-300 h-full flex flex-col ${
+      isFiveStar 
+        ? 'border-yellow-200 hover:border-yellow-300 shadow-yellow-100' 
+        : 'border-blue-200 hover:border-blue-300 shadow-blue-100'
     }`}>
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
           <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 shadow-sm ${
+              isFiveStar 
+                ? 'bg-gradient-to-br from-yellow-100 to-amber-100 border-yellow-200' 
+                : 'bg-gradient-to-br from-blue-100 to-indigo-100 border-blue-200'
+            }`}>
               {review.userAvatar ? (
                 <img
                   src={review.userAvatar}
@@ -421,18 +482,26 @@ const ReviewCard = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <User className="w-5 h-5 md:w-6 md:h-6 text-gray-400" />
+                <User className={`w-6 h-6 ${isFiveStar ? 'text-yellow-600' : 'text-blue-600'}`} />
               )}
             </div>
             {review.verifiedPurchase && (
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 md:w-5 md:h-5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center border border-white shadow-sm">
-                <CheckCircle className="w-2 h-2 md:w-3 md:h-3 text-white" />
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center border border-white shadow-sm">
+                <CheckCircle className="w-3 h-3 text-white" />
               </div>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="font-bold text-gray-900 text-sm md:text-base truncate">{review.userName}</h4>
-            <div className="flex items-center text-xs md:text-sm text-gray-600">
+            <div className="flex items-center">
+              <h4 className="font-bold text-gray-900 truncate">{review.userName}</h4>
+              {isFiveStar && (
+                <div className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 text-xs font-bold rounded-full border border-yellow-200">
+                  <Sparkles className="w-3 h-3 inline mr-1" />
+                  Top Reviewer
+                </div>
+              )}
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
               <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
               <span className="truncate">{formatDate(review.createdAt)}</span>
             </div>
@@ -440,50 +509,63 @@ const ReviewCard = ({
         </div>
         
         {/* Rating Badge */}
-        <div className={`px-2 py-1 md:px-3 md:py-1.5 rounded-full font-bold text-xs md:text-sm shadow-sm flex-shrink-0 ${
+        <div className={`px-3 py-1.5 rounded-full font-bold text-sm shadow-sm flex-shrink-0 ml-2 ${
           isFiveStar
-            ? 'bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 border border-yellow-200'
-            : 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200'
+            ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white border border-yellow-600'
+            : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white border border-blue-600'
         }`}>
           <div className="flex items-center">
-            <Star className="w-3 h-3 mr-1" />
+            <Star className="w-4 h-4 mr-1 fill-current" />
             {review.rating}/5
           </div>
         </div>
       </div>
 
       {/* Stars */}
-      <div className="flex items-center mb-3">
-        <div className="flex items-center mr-2">
+      <div className="flex items-center mb-4">
+        <div className="flex items-center mr-3">
           {[0, 1, 2, 3, 4].map((starIndex) => (
             <Star
               key={starIndex}
-              className={`w-4 h-4 md:w-5 md:h-5 ${getStarClass(review.rating, starIndex)}`}
+              className={`w-5 h-5 ${getStarClass(review.rating, starIndex)}`}
             />
           ))}
         </div>
-        {review.title && (
-          <h3 className="font-bold text-gray-900 text-base truncate flex-1 min-w-0 ml-2">
-            {review.title}
-          </h3>
+        {isFiveStar && (
+          <div className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
+            ⭐ Excellent
+          </div>
         )}
       </div>
 
+      {/* Title */}
+      {review.title && (
+        <h3 className="font-bold text-gray-900 text-lg mb-3">
+          {review.title}
+        </h3>
+      )}
+
       {/* Review Content */}
-      <div className="relative mb-4">
-        <Quote className="absolute -top-1 -left-1 w-6 h-6 md:w-8 md:h-8 text-gray-200 opacity-50" />
-        <p className={`text-gray-700 leading-relaxed text-sm md:text-base ${compact ? 'line-clamp-3 md:line-clamp-4' : 'line-clamp-4'}`}>
+      <div className="relative mb-5 flex-1">
+        <Quote className={`absolute -top-2 -left-2 w-8 h-8 opacity-20 ${
+          isFiveStar ? 'text-yellow-400' : 'text-blue-400'
+        }`} />
+        <p className="text-gray-700 leading-relaxed text-base pl-4">
           "{review.comment}"
         </p>
       </div>
 
       {/* Product Info */}
       {review.productName && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-xl border border-gray-200">
+        <div className={`mb-4 p-3 rounded-xl border ${
+          isFiveStar 
+            ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200' 
+            : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+        }`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
+            <div className="flex items-center space-x-3 flex-1 min-w-0">
               {review.productImage && (
-                <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
                   <Image
                     src={review.productImage}
                     alt={review.productName}
@@ -494,7 +576,7 @@ const ReviewCard = ({
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-xs md:text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-gray-900 truncate">
                   {review.productName}
                 </p>
                 {review.productPrice && (
@@ -507,7 +589,7 @@ const ReviewCard = ({
             {review.productSlug && (
               <Link 
                 href={`/products/${review.productSlug}`}
-                className="text-xs md:text-sm font-medium text-purple-600 hover:text-purple-700 hover:underline flex items-center ml-2 flex-shrink-0"
+                className="text-sm font-medium text-purple-600 hover:text-purple-700 hover:underline flex items-center ml-2 flex-shrink-0"
               >
                 View
                 <ArrowRight className="w-3 h-3 ml-1" />
@@ -518,19 +600,20 @@ const ReviewCard = ({
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-        <div className="flex items-center space-x-2 md:space-x-4">
+      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+        <div className="flex items-center space-x-4">
           {review.verifiedPurchase && (
-            <div className="flex items-center text-xs text-green-700">
-              <Package className="w-3 h-3 mr-1" />
-              <span className="hidden md:inline font-medium">Verified</span>
-              <span className="md:hidden font-medium">✓</span>
+            <div className="flex items-center text-sm font-medium">
+              <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mr-2">
+                <CheckCircle className="w-3 h-3 text-white" />
+              </div>
+              <span className="text-green-700">Verified</span>
             </div>
           )}
           {review.helpfulCount > 0 && (
-            <div className="flex items-center text-xs text-gray-600">
-              <ThumbsUp className="w-3 h-3 mr-1" />
-              <span>{review.helpfulCount}</span>
+            <div className="flex items-center text-sm text-gray-600">
+              <ThumbsUp className="w-4 h-4 mr-1" />
+              <span>{review.helpfulCount} helpful</span>
             </div>
           )}
         </div>
@@ -538,9 +621,9 @@ const ReviewCard = ({
         {/* Review Images */}
         {review.images && review.images.length > 0 && (
           <div className="flex items-center">
-            <div className="flex -space-x-1 md:-space-x-2">
+            <div className="flex -space-x-2">
               {review.images.slice(0, 2).map((image, index) => (
-                <div key={index} className="relative w-6 h-6 md:w-8 md:h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100">
+                <div key={index} className="relative w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100 shadow-sm">
                   <Image
                     src={image}
                     alt={`Review image ${index + 1}`}
@@ -551,7 +634,7 @@ const ReviewCard = ({
                 </div>
               ))}
               {review.images.length > 2 && (
-                <div className="relative w-6 h-6 md:w-8 md:h-8 rounded-full border-2 border-white bg-gray-800 flex items-center justify-center">
+                <div className="relative w-8 h-8 rounded-full border-2 border-white bg-gray-800 flex items-center justify-center shadow-sm">
                   <span className="text-xs font-bold text-white">
                     +{review.images.length - 2}
                   </span>

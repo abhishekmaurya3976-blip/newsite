@@ -43,7 +43,7 @@ export default function Footer() {
                 About Our Craft
               </h3>
               <p className="text-gray-400 leading-relaxed">
-                At ArtPlazaa, we curate the world's finest art supplies for professionals 
+                At Art Plazaa, we curate the world's finest art supplies for professionals 
                 and enthusiasts alike. Our collection represents a commitment to quality, 
                 precision, and artistic excellence that transforms creative vision into 
                 tangible masterpieces.
@@ -148,7 +148,7 @@ export default function Footer() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Customer Service</div>
-                  <div className="text-white font-medium">+1 (555) 123-4567</div>
+                  <div className="text-white font-medium">+91 9967202612</div>
                 </div>
               </div>
               
@@ -160,7 +160,7 @@ export default function Footer() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Email Support</div>
-                  <div className="text-white font-medium">support@artplazaa.com</div>
+                  <div className="text-white font-medium">artplazaa@outlook.com</div>
                 </div>
               </div>
             </div>

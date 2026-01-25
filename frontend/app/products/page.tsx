@@ -341,7 +341,7 @@ export default function ProductsPage() {
 
                         <div className="flex flex-col items-start md:items-end">
                           <div className="text-lg md:text-xl font-bold text-gray-900 mb-2">₹{(product.price ?? 0).toLocaleString()}</div>
-                          <button
+                          {/* <button
                             onClick={(e) => {
                               e.stopPropagation();
                               // Add to cart handler
@@ -349,7 +349,7 @@ export default function ProductsPage() {
                             className="px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 text-sm font-medium w-full md:w-auto"
                           >
                             Add to Cart
-                          </button>
+                          </button> */}
                         </div>
                       </div>
                     </div>

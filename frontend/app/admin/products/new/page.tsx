@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Upload, X, Save, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { productApi } from '../../../lib/api/products';
@@ -68,6 +68,36 @@ export default function NewProductPage() {
     loadCategories();
   }, []);
 
+  // Calculate real-time values
+  const calculateValues = useMemo(() => {
+    const discount = formData.compareAtPrice && formData.price && formData.compareAtPrice > formData.price
+      ? Math.round(((formData.compareAtPrice - formData.price) / formData.compareAtPrice) * 100)
+      : null;
+
+    const profitMargin = formData.costPrice && formData.price && formData.price > 0
+      ? Math.round(((formData.price - formData.costPrice) / formData.price) * 100)
+      : null;
+
+    const stockValue = formData.costPrice && formData.stock
+      ? (formData.costPrice * formData.stock)
+      : null;
+
+    return {
+      discount,
+      profitMargin,
+      stockValue,
+      savingsAmount: formData.compareAtPrice && formData.price
+        ? (formData.compareAtPrice - formData.price)
+        : null,
+      profitAmount: formData.costPrice && formData.price
+        ? (formData.price - formData.costPrice)
+        : null,
+      totalProfit: formData.costPrice && formData.price && formData.stock
+        ? ((formData.price - formData.costPrice) * formData.stock)
+        : null
+    };
+  }, [formData.compareAtPrice, formData.price, formData.costPrice, formData.stock]);
+
   const loadCategories = async () => {
     try {
       const data = await categoryApi.getAll();
@@ -100,6 +130,10 @@ export default function NewProductPage() {
 
     if (!formData.sku.trim()) {
       newErrors.sku = 'SKU is required';
+    }
+
+    if (formData.compareAtPrice && formData.compareAtPrice <= formData.price) {
+      newErrors.compareAtPrice = 'Compare price must be higher than regular price';
     }
 
     setErrors(newErrors);
@@ -374,7 +408,7 @@ export default function NewProductPage() {
                     required
                     min="0.01"
                     step="0.01"
-                    value={formData.price}
+                    value={formData.price || ''}
                     onChange={(e) => handleNumberChange('price', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.price ? 'border-red-500' : 'border-gray-300'
@@ -395,8 +429,25 @@ export default function NewProductPage() {
                     step="0.01"
                     value={formData.compareAtPrice || ''}
                     onChange={(e) => handleInputChange('compareAtPrice', e.target.value ? parseFloat(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      errors.compareAtPrice ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
+                  {errors.compareAtPrice && (
+                    <p className="mt-1 text-sm text-red-600">{errors.compareAtPrice}</p>
+                  )}
+                  {calculateValues.discount !== null && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm text-green-600">
+                        Discount: {calculateValues.discount}%
+                      </p>
+                      {calculateValues.savingsAmount !== null && (
+                        <p className="text-sm text-gray-600">
+                          Savings: ₹{calculateValues.savingsAmount.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -418,6 +469,11 @@ export default function NewProductPage() {
                   {errors.stock && (
                     <p className="mt-1 text-sm text-red-600">{errors.stock}</p>
                   )}
+                  {calculateValues.stockValue !== null && (
+                    <p className="mt-2 text-sm text-blue-600">
+                      Stock Value: ₹{calculateValues.stockValue.toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -432,10 +488,63 @@ export default function NewProductPage() {
                     onChange={(e) => handleInputChange('costPrice', e.target.value ? parseFloat(e.target.value) : undefined)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
+                  {calculateValues.profitMargin !== null && (
+                    <div className="mt-2 space-y-1">
+                      <p className={`text-sm ${calculateValues.profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        Profit Margin: {calculateValues.profitMargin}%
+                      </p>
+                      {calculateValues.profitAmount !== null && (
+                        <p className={`text-sm ${calculateValues.profitAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Profit per unit: ₹{calculateValues.profitAmount.toFixed(2)}
+                        </p>
+                      )}
+                      {calculateValues.totalProfit !== null && (
+                        <p className={`text-sm ${calculateValues.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Total Profit: ₹{calculateValues.totalProfit.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Summary Card */}
+          {(calculateValues.discount !== null || calculateValues.profitMargin !== null || calculateValues.stockValue !== null) && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Financial Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {calculateValues.discount !== null && (
+                  <div className="text-center p-3 bg-white rounded border">
+                    <p className="text-sm text-gray-600">Discount</p>
+                    <p className="text-lg font-semibold text-green-600">{calculateValues.discount}%</p>
+                    {calculateValues.savingsAmount !== null && (
+                      <p className="text-xs text-gray-500">Save ₹{calculateValues.savingsAmount.toFixed(2)}</p>
+                    )}
+                  </div>
+                )}
+                {calculateValues.profitMargin !== null && (
+                  <div className="text-center p-3 bg-white rounded border">
+                    <p className="text-sm text-gray-600">Profit Margin</p>
+                    <p className={`text-lg font-semibold ${calculateValues.profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {calculateValues.profitMargin}%
+                    </p>
+                    {calculateValues.totalProfit !== null && (
+                      <p className="text-xs text-gray-500">Total: ₹{calculateValues.totalProfit.toFixed(2)}</p>
+                    )}
+                  </div>
+                )}
+                {calculateValues.stockValue !== null && (
+                  <div className="text-center p-3 bg-white rounded border">
+                    <p className="text-sm text-gray-600">Stock Value</p>
+                    <p className="text-lg font-semibold text-blue-600">₹{calculateValues.stockValue.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500">{formData.stock} units</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">

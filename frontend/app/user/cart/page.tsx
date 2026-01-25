@@ -439,7 +439,7 @@ export default function CartPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
                     { icon: <Truck className="w-4 h-4" />, title: "Free Shipping", desc: "On orders over ₹499" },
-                    { icon: <RefreshCw className="w-4 h-4" />, title: "Easy Returns", desc: "30-day return policy" },
+                    { icon: <RefreshCw className="w-4 h-4" />, title: "Easy Returns", desc: "7 day return policy" },
                     { icon: <CreditCard className="w-4 h-4" />, title: "Secure Payment", desc: "SSL encrypted checkout" }
                   ].map((benefit, idx) => (
                     <div key={idx} className="flex items-center gap-3">
@@ -501,7 +501,7 @@ export default function CartPage() {
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Tax (18% GST)</span>
+                    <span className="text-gray-600">Inclusive of all taxes </span>
                     <span className="font-medium">₹{(totalPrice * 0.18).toFixed(2)}</span>
                   </div>
                   
@@ -555,7 +555,7 @@ export default function CartPage() {
                   <div className="space-y-3">
                     {[
                       { icon: <Truck className="w-4 h-4" />, title: "Free Shipping", desc: "On orders over ₹499" },
-                      { icon: <RefreshCw className="w-4 h-4" />, title: "Easy Returns", desc: "30-day return policy" },
+                      { icon: <RefreshCw className="w-4 h-4" />, title: "Easy Returns", desc: "7-day return policy" },
                       { icon: <CreditCard className="w-4 h-4" />, title: "Secure Payment", desc: "SSL encrypted checkout" }
                     ].map((benefit, idx) => (
                       <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -590,7 +590,7 @@ export default function CartPage() {
                       <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center mr-3 flex-shrink-0">
                         <Shield className="w-5 h-5 text-purple-600" />
                       </div>
-                      <span>30-day return policy</span>
+                      <span>7-day return policy</span>
                     </div>
                   </div>
                 </div>

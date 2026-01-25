@@ -328,7 +328,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm sm:text-base">30-Day Returns</p>
+                    <p className="font-medium text-sm sm:text-base">7-Day Returns</p>
                     <p className="text-xs sm:text-sm text-gray-500">Easy returns & exchanges</p>
                   </div>
                 </div>

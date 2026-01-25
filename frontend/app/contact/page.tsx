@@ -37,7 +37,7 @@ const playfair = Playfair_Display({
 
 export default function ContactPage() {
   // WhatsApp contact information
-  const whatsappNumber = '919967202612';
+  const whatsappNumber = '919967913882';
   const whatsappMessage = 'Hello Art Plazaa, I have a query about your products.';
 
   const handleWhatsAppClick = () => {
@@ -307,23 +307,6 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* WhatsApp Floating Button */}
-      <button
-        onClick={handleWhatsAppClick}
-        className="fixed bottom-6 right-6 z-40 w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110 group"
-        aria-label="Chat on WhatsApp"
-      >
-        <div className="relative w-full h-full flex items-center justify-center">
-          <MessageCircle className="w-7 h-7 text-white" />
-          <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center animate-pulse">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          </div>
-        </div>
-        <div className="absolute right-20 bottom-0 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
-          Chat on WhatsApp
-        </div>
-      </button>
-
       {/* FAQ Section */}
       <section className="py-20 px-4 md:px-6 lg:px-8 xl:px-20 bg-gradient-to-b from-amber-50/20 to-white">
         <div className="max-w-4xl mx-auto">
@@ -402,7 +385,7 @@ export default function ContactPage() {
               Chat on WhatsApp
             </button>
             <a 
-              href="tel:+919967202612" 
+              href="tel:+919967913882" 
               className="px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white/10 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center justify-center"
             >
               <Phone className="w-5 h-5 mr-2" />
