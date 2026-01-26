@@ -132,7 +132,7 @@ async function ProductsContent({
 
   return (
     <>
-      {/* Mobile grid: each tile wraps clickable parts in Link so mobile taps navigate */}
+      {/* Mobile grid: each tile is fully clickable and redirects to product detail page */}
       <div className="md:hidden">
         <div className="grid grid-cols-2 gap-3">
           {products.map((product) => {
@@ -142,42 +142,46 @@ async function ProductsContent({
             const productSlugOrId = String(product.slug ?? product._id ?? '');
 
             return (
-              <div key={product._id ?? productSlugOrId} className="w-full">
-                <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm h-full flex flex-col">
-                  {/* Link wraps the image + meta (so tapping goes to details) */}
-                  <Link href={`/products/${encodeURIComponent(productSlugOrId)}`} className="block">
-                    <div className="relative aspect-square w-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-md mb-2 overflow-hidden">
-                      {imageUrl ? (
-                        // use native img tag for simple server-rendered mobile tile
-                        <img 
-                          src={imageUrl} 
-                          alt={imageAlt}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
-                          <Package className="w-6 h-6 text-white/60" />
-                        </div>
-                      )}
-                    </div>
+              <Link 
+                key={product._id ?? productSlugOrId} 
+                href={`/products/${encodeURIComponent(productSlugOrId)}`}
+                className="block"
+              >
+                <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm h-full flex flex-col hover:shadow-md transition-shadow">
+                  {/* Product Image */}
+                  <div className="relative aspect-square w-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-md mb-2 overflow-hidden">
+                    {imageUrl ? (
+                      <img 
+                        src={imageUrl} 
+                        alt={imageAlt}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
+                        <Package className="w-6 h-6 text-white/60" />
+                      </div>
+                    )}
+                  </div>
 
+                  {/* Product Info */}
+                  <div className="flex-1">
                     <h3 className="font-medium text-gray-900 mb-1 line-clamp-2 text-xs leading-tight min-h-[32px]">
                       {product.name}
                     </h3>
                     <p className="text-xs font-bold text-gray-900 mb-2">
                       ₹{(product.price ?? 0).toLocaleString()}
                     </p>
-                  </Link>
+                  </div>
 
-                  {/* Add to Cart - kept outside Link so it doesn't navigate */}
+                  {/* Shop Button - Now part of the clickable Link area */}
                   <div className="mt-auto">
-                    <button className="w-full py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-medium rounded-md hover:from-purple-700 hover:to-pink-700 transition-all">
-                      Add to Cart
-                    </button>
+                    <div className="w-full py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-medium rounded-md text-center">
+                      Shop Now
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

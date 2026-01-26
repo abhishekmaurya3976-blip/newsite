@@ -149,13 +149,13 @@ const PremiumSlider = ({
                 src={image.imageUrl}
                 alt={image.altText}
                 fill
-                className="object-cover"
+                 className="object-cover brightness-100 contrast-100"
                 priority={index === 0}
                 sizes="100vw"
-                quality={75}
+                quality={85}
                 loading={index === 0 ? 'eager' : 'lazy'}
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/20 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-black/0 via-black/0 to-transparent"></div>
             </div>
 
             {/* Premium Content Overlay */}
