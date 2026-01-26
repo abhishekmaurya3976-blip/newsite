@@ -126,9 +126,9 @@ export default function Header() {
                   className="flex items-center space-x-5 group transition-all duration-300 hover:scale-[1.02]"
                 >
                   <div className="relative">
-                    <div className="w-18 h-18 2xl:w-24 2xl:h-20 rounded-2xl overflow-hidden bg-white shadow-xl border-2 border-amber-100 group-hover:border-amber-200 transition-all duration-300">
+                    <div className="w-20 h-18 2xl:w-25 2xl:h-17 rounded-2xl overflow-hidden bg-white shadow-xl border-2 border-amber-100 group-hover:border-amber-200 transition-all duration-300">
                       <img 
-                        src="/logo.jpg" 
+                        src="/logo.png" 
                         alt="Art Plazaa  - Premium Stationery"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         onError={(e) => {
@@ -388,9 +388,9 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {/* Mobile Logo */}
-                  <div className="w-19 h-15 rounded-xl overflow-hidden bg-white shadow-lg border border-amber-100">
+                  <div className="w-19 h-12 rounded-xl overflow-hidden bg-white shadow-lg border border-amber-100">
                     <img 
-                      src="/logo.jpg" 
+                      src="/logo.png" 
                       alt="Art Plazaa "
                       className="w-full h-full object-cover"
                       onError={(e) => {
