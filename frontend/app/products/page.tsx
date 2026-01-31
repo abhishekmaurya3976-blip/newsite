@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -51,7 +51,8 @@ const ListViewSkeleton = () => (
   </div>
 );
 
-export default function ProductsPage() {
+// Create a separate component that uses useSearchParams
+function ProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -533,5 +534,41 @@ export default function ProductsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+// Main ProductsPage component with Suspense boundary
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white pt-16 md:pt-24">
+        {/* Loading skeleton for hero */}
+        <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-blue-50 border-b border-gray-200 -mt-16 md:-mt-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-20 pt-24 md:pt-32">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="relative">
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse flex items-center justify-center shadow-xl"></div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse hidden md:block"></div>
+                </div>
+              </div>
+              <div className="h-12 w-64 bg-gray-200 rounded-xl animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Loading skeleton for main content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            {[...Array(8)].map((_, i) => <ProductCardSkeleton key={i} />)}
+          </div>
+        </div>
+      </div>
+    }>
+      <ProductsContent />
+    </Suspense>
   );
 }
