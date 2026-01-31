@@ -1,25 +1,41 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChangeEvent } from 'react';
 
 interface SortSelectProps {
   currentSort: string;
-  categorySlug: string;
+  categorySlug?: string; // Make optional
 }
 
 export default function SortSelect({ currentSort, categorySlug }: SortSelectProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleSortChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const newSort = e.target.value;
-    // Update URL with new sort parameter
-    const params = new URLSearchParams();
+    
+    // Get all current search params
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Update sort parameter
     if (newSort !== 'createdAt') {
       params.set('sort', newSort);
+    } else {
+      params.delete('sort');
     }
-    // Reset to page 1 when sort changes
-    router.push(`/categories/${categorySlug}?${params.toString()}`);
+    
+    // Always reset to page 1 when sort changes
+    params.set('page', '1');
+    
+    // Determine the route
+    let route = '/products';
+    if (categorySlug) {
+      route = `/categories/${categorySlug}`;
+    }
+    
+    // Update URL
+    router.push(`${route}?${params.toString()}`);
   };
 
   return (
