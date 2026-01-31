@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useWishlist } from '../../contexts/WishlistContext';
@@ -47,8 +47,6 @@ export default function Header() {
   
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
   const { wishlist } = useWishlist();
@@ -56,12 +54,6 @@ export default function Header() {
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Initialize search query from URL params
-  useEffect(() => {
-    const search = searchParams.get('search') || '';
-    setSearchQuery(search);
-  }, [searchParams]);
 
   // Handle scroll effect
   useEffect(() => {
@@ -95,40 +87,9 @@ export default function Header() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Get current URL params
-      const params = new URLSearchParams(searchParams.toString());
-      
-      // Set search query
-      params.set('search', searchQuery.trim());
-      
-      // Always reset to page 1 when searching
-      params.set('page', '1');
-      
-      // Redirect to products page with search parameter
-      router.push(`/products?${params.toString()}`);
-      
-      // Close mobile menu if open
-      setIsMobileMenuOpen(false);
-    }
-  };
-
-  // Handle clear search
-  const handleClearSearch = () => {
-    setSearchQuery('');
-    
-    // Get current URL params
-    const params = new URLSearchParams(searchParams.toString());
-    
-    // Remove search parameter
-    params.delete('search');
-    params.set('page', '1');
-    
-    // Update URL if we're on products page
-    if (pathname === '/products') {
-      router.push(`/products?${params.toString()}`);
-    } else {
-      // Otherwise just clear the input
+      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery('');
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -218,15 +179,6 @@ export default function Header() {
                       <Search className="w-5 h-5 text-amber-500" />
                       <div className="ml-4 w-px h-6 bg-gradient-to-b from-gray-300/50 to-transparent" />
                     </div>
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        onClick={handleClearSearch}
-                        className="absolute right-24 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
                     <button
                       type="submit"
                       className="absolute right-2 top-1/2 transform -translate-y-1/2 px-7 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-md hover:shadow-lg font-semibold hover:scale-105 active:scale-95"
@@ -523,15 +475,6 @@ export default function Header() {
                 className="w-full px-4 py-3 pl-12 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-gray-800 placeholder-gray-500 shadow-sm transition-all duration-200"
               />
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4.5 h-4.5 text-amber-500" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="absolute right-16 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
               <button
                 type="submit"
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors duration-200 font-medium text-sm shadow-sm"
