@@ -2,11 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShoppingBag, Heart, Check, Loader2 } from 'lucide-react';
+import { ShoppingBag, Heart, Check } from 'lucide-react';
 import { Product } from '../../../types/product';
 import { useCart } from '../../contexts/CartContext';
 import { useWishlist } from '../../contexts/WishlistContext';
-import { useRouter } from 'next/navigation';
 
 interface ProductActionsProps {
   product: Product;
@@ -16,10 +15,8 @@ export default function ProductActions({ product }: ProductActionsProps) {
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
-  const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const router = useRouter();
 
   // Sync wishlist state
   useEffect(() => {
@@ -28,19 +25,14 @@ export default function ProductActions({ product }: ProductActionsProps) {
     }
   }, [product._id, isInWishlist]);
 
-  const handleAddToCart = async () => {
-    try {
-      await addToCart(product, quantity);
-      setIsAdded(true);
-      
-      // Reset animation after 2 seconds
-      setTimeout(() => {
-        setIsAdded(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to add to cart:', error);
-      // Show error message to user
-    }
+  const handleAddToCart = () => {
+    addToCart(product, quantity);
+    setIsAdded(true);
+    
+    // Reset animation after 2 seconds
+    setTimeout(() => {
+      setIsAdded(false);
+    }, 2000);
   };
 
   const handleWishlist = () => {
@@ -55,25 +47,10 @@ export default function ProductActions({ product }: ProductActionsProps) {
     }
   };
 
-  const handleBuyNow = async () => {
-    try {
-      setIsBuyNowLoading(true);
-      
-      // Add product to cart first
-      await addToCart(product, quantity);
-      
-      // Wait a moment for cart state to update
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Then navigate to checkout
-      router.push('/user/checkout');
-      
-    } catch (error) {
-      console.error('Failed to process Buy Now:', error);
-      // Show error message to user
-    } finally {
-      setIsBuyNowLoading(false);
-    }
+  const handleBuyNow = () => {
+    addToCart(product, quantity);
+    // Navigate to checkout page
+    window.location.href = '/user/checkout';
   };
 
   return (
@@ -130,22 +107,12 @@ export default function ProductActions({ product }: ProductActionsProps) {
         </button>
       </div>
 
-      {/* Buy Now Button with Loading State */}
+      {/* Buy Now Button */}
       <button 
         onClick={handleBuyNow}
-        disabled={product.stock === 0 || isBuyNowLoading}
-        className={`w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 sm:py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl active:scale-95 text-sm sm:text-base ${
-          (product.stock === 0 || isBuyNowLoading) ? 'opacity-50 cursor-not-allowed' : ''
-        }`}
+        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 sm:py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl active:scale-95 text-sm sm:text-base"
       >
-        {isBuyNowLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin inline-block" />
-            Processing...
-          </>
-        ) : (
-          'Buy Now'
-        )}
+        Buy Now
       </button>
     </div>
   );
