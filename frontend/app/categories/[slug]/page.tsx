@@ -14,7 +14,7 @@ import {
 import { categoryApi } from '../../lib/api/categories';
 import { productApi } from '../../lib/api/products';
 import CategoryCard from '../../components/shared/CategoryCard';
-import ProductGrid from '../../components/shared/ProductGrid';
+import ProductCard from '../../components/shared/ProductCard';
 import SortSelect from '../../components/shared/SortSelect';
 
 interface CategoryPageProps {
@@ -41,24 +41,9 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   };
 }
 
-// Safe image helpers (always return strings)
-function getImageUrl(image: any): string {
-  if (!image) return '';
-  if (typeof image === 'string') return image;
-  if (typeof image === 'object') return image.url ?? image.src ?? '';
-  return '';
-}
-
-function getImageAlt(image: any, defaultAlt: string): string {
-  if (!image) return defaultAlt;
-  if (typeof image === 'object') return image.altText ?? image.alt ?? defaultAlt;
-  if (typeof image === 'string') return defaultAlt;
-  return defaultAlt;
-}
-
 function MobileFilterButton() {
   return (
-    <button className="md:hidden flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-700 font-medium text-sm w-full">
+    <button className="md:hidden flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-700 font-medium text-sm w-full hover:bg-gray-50 transition-colors">
       <Filter className="w-4 h-4" />
       Filters
     </button>
@@ -162,69 +147,19 @@ async function ProductsContent({
 
   return (
     <>
-      {/* Mobile grid: each tile wraps clickable parts in Link so mobile taps navigate */}
-      <div className="md:hidden">
-        <div className="grid grid-cols-2 gap-3">
-          {products.map((product) => {
-            const firstImage = product.images?.[0];
-            const imageUrl = getImageUrl(firstImage);
-            const imageAlt = getImageAlt(firstImage, product.name || 'Product');
-            const productSlugOrId = String(product.slug ?? product._id ?? '');
-
-            return (
-              <div key={product._id ?? productSlugOrId} className="w-full">
-                <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm h-full flex flex-col">
-                  {/* Link wraps the image + meta (so tapping goes to details) */}
-                  <Link href={`/products/${encodeURIComponent(productSlugOrId)}`} className="block">
-                    <div className="relative aspect-square w-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-md mb-2 overflow-hidden">
-                      {imageUrl ? (
-                        // use native img tag for simple server-rendered mobile tile
-                        <img 
-                          src={imageUrl} 
-                          alt={imageAlt}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
-                          <Package className="w-6 h-6 text-white/60" />
-                        </div>
-                      )}
-                    </div>
-
-                    <h3 className="font-medium text-gray-900 mb-1 line-clamp-2 text-xs leading-tight min-h-[32px]">
-                      {product.name}
-                    </h3>
-                    <p className="text-xs font-bold text-gray-900 mb-2">
-                      ₹{(product.price ?? 0).toLocaleString()}
-                    </p>
-                  </Link>
-
-                  {/* Add to Cart - kept outside Link so it doesn't navigate */}
-                  <div className="mt-auto">
-                    <button className="w-full py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-medium rounded-md hover:from-purple-700 hover:to-pink-700 transition-all">
-                      Add to Cart
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      
-      {/* Desktop: existing ProductGrid stays (assumed client rendering / clickable) */}
-      <div className="hidden md:block">
-        <ProductGrid 
-          products={products} 
-          loading={false}
-        />
+      {/* Products Grid - Using ProductCard for both mobile and desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        {products.map((product) => (
+          <div key={product._id} className="transform hover:-translate-y-1 transition-transform duration-300">
+            <ProductCard product={product} />
+          </div>
+        ))}
       </div>
       
       {/* Pagination */}
       {productsData.totalPages > 1 && (
         <div className="mt-12 flex justify-center">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {page > 1 && (
               <Link
                 href={`/categories/${slug}?${new URLSearchParams({
@@ -418,7 +353,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
               </p>
             </div>
 
-            {/* Desktop Controls (unchanged) */}
+            {/* Desktop Controls */}
             <div className="hidden md:flex items-center gap-4">
               <form action={`/categories/${slug}`} method="GET" className="relative">
                 <input
@@ -426,7 +361,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                   name="search"
                   defaultValue={searchQuery}
                   placeholder="Search products..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-48 md:w-64 text-sm"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-48 md:w-64 text-sm bg-white"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 {searchQuery && (
@@ -448,9 +383,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             {/* Mobile Controls */}
             <div className="md:hidden w-full">
               <div className="flex flex-col gap-3">
-                {/* Mobile Filter Button */}
-                <MobileFilterButton />
-                
                 {/* Search and Sort Container for Mobile */}
                 <div className="flex flex-col xs:flex-row gap-3 w-full">
                   {/* Search for Mobile */}
@@ -461,7 +393,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                         name="search"
                         defaultValue={searchQuery}
                         placeholder="Search products..."
-                        className="pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full text-sm"
+                        className="pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full text-sm bg-white"
                       />
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       {searchQuery && (
@@ -483,6 +415,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                     />
                   </div>
                 </div>
+
+                {/* Mobile Filter Button */}
+                <MobileFilterButton />
               </div>
             </div>
           </div>
@@ -536,7 +471,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link 
                 href="/products"
-                className="inline-flex items-center justify-center px-6 py-3 bg-white text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-all duration-300 group"
+                className="inline-flex items-center justify-center px-6 py-3 bg-white text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-all duration-300 group shadow-lg hover:shadow-xl"
               >
                 Shop All Products
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
