@@ -345,9 +345,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
               
               {/* Share - REPLACED with real ShareButtons component */}
-              {/* <div className="pt-6 md:pt-8 border-t border-gray-200"> */}
+              <div className="pt-6 md:pt-8 border-t border-gray-200">
                 <ShareButtons product={product as Product} />
-              {/* </div> */}
+              </div>
             </div>
           </div>
         </div>

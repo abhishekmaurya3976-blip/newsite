@@ -145,7 +145,7 @@ body {
   background-clip: text;
 }
 
-/* Shine Effect for Cards */
+/* Update your shine-effect class */
 .shine-effect {
   position: relative;
   overflow: hidden;
@@ -166,6 +166,8 @@ body {
   );
   transform: rotate(45deg);
   transition: transform 0.6s;
+  /* CRITICAL FIX: Add this line */
+  pointer-events: none;
 }
 
 .shine-effect:hover::after {
