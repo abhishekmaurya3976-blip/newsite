@@ -168,7 +168,7 @@ const server = app.listen(PORT, () => {
 
 // Function to ping server and keep it awake (for Render free tier)
 function startKeepAlive() {
-  const url = process.env.RENDER_EXTERNAL_URL || `https://newsite-ef7w.onrender.com` || `http://localhost:${PORT}`;
+  const url = process.env.RENDER_EXTERNAL_URL || `https://newsite-6pfx.onrender.com` || `http://localhost:${PORT}`;
   const interval = 14 * 60 * 1000; // 14 minutes (Render spins down after 15 mins)
   
   console.log(`🔄 Setting up keep-alive for: ${url}`);
