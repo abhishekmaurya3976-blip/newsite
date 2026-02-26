@@ -74,7 +74,7 @@ class SliderAPI {
       console.error('Error uploading slider:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to upload slider'
+        error: error instanceof Error ? error.message : 'Failed to upload slider1'
       };
     }
   }
