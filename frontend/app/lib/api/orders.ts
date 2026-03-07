@@ -410,6 +410,43 @@ class OrdersAPI {
       throw error;
     }
   }
+  // Update payment status (Admin - NO Auth Required)
+async updatePaymentStatus(
+  orderId: string, 
+  status: string
+): Promise<ApiResponse<any>> {
+  try {
+    const response = await fetch(`${this.baseUrl}/admin/orders/${orderId}/payment`, {
+      method: 'PUT',
+      headers: this.getAdminHeaders(),
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update payment status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.success) {
+      return {
+        success: true,
+        message: result.message || 'Payment status updated successfully'
+      };
+    } else {
+      return {
+        success: false,
+        error: result.message || 'Failed to update payment status'
+      };
+    }
+  } catch (error) {
+    console.error('OrdersAPI.updatePaymentStatus error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update payment status'
+    };
+  }
+}
 
   // Utility method to check if order can be cancelled
   canCancelOrder(order: Order): boolean {

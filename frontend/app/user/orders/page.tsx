@@ -1,4 +1,3 @@
-// app/user/orders/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,9 +16,11 @@ import {
   AlertCircle,
   Calendar,
   Eye,
-  Filter
+  Filter,
+  CreditCard,
+  Banknote
 } from 'lucide-react';
-import { ordersApi } from '../../lib/api/orders';
+import { checkoutApi } from '../../lib/api/checkout';
 
 interface Order {
   _id: string;
@@ -32,6 +33,7 @@ interface Order {
     image?: string;
   }>;
   orderStatus: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  paymentMethod: 'razorpay' | 'cod' | 'upi';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   total: number;
   createdAt: string;
@@ -62,7 +64,7 @@ export default function UserOrdersPage() {
         params.status = selectedStatus;
       }
       
-      const result = await ordersApi.getUserOrders(params);
+      const result = await checkoutApi.getUserOrders(params);
       
       if (result.success && result.data) {
         setOrders(result.data.orders);
@@ -89,7 +91,7 @@ export default function UserOrdersPage() {
 
     try {
       setCancellingOrder(orderId);
-      const response = await ordersApi.cancelOrder(orderId, 'Changed my mind');
+      const response = await checkoutApi.cancelOrder(orderId, 'Changed my mind');
       
       if (response.success) {
         await loadOrders();
@@ -103,27 +105,43 @@ export default function UserOrdersPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'confirmed': return 'bg-blue-100 text-blue-800';
-      case 'processing': return 'bg-purple-100 text-purple-800';
-      case 'shipped': return 'bg-indigo-100 text-indigo-800';
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getStatusColor = (status: string, paymentStatus: string) => {
+    if (paymentStatus === 'failed') return 'bg-red-100 text-red-800';
+    if (status === 'pending' && paymentStatus === 'pending') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'confirmed') return 'bg-blue-100 text-blue-800';
+    if (status === 'processing') return 'bg-purple-100 text-purple-800';
+    if (status === 'shipped') return 'bg-indigo-100 text-indigo-800';
+    if (status === 'delivered') return 'bg-green-100 text-green-800';
+    if (status === 'cancelled') return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusIcon = (status: string, paymentStatus: string) => {
+    if (paymentStatus === 'failed') return <XCircle className="w-4 h-4" />;
+    if (status === 'pending' && paymentStatus === 'pending') return <Clock className="w-4 h-4" />;
+    if (status === 'confirmed') return <CheckCircle className="w-4 h-4" />;
+    if (status === 'processing') return <Package className="w-4 h-4" />;
+    if (status === 'shipped') return <Truck className="w-4 h-4" />;
+    if (status === 'delivered') return <Home className="w-4 h-4" />;
+    if (status === 'cancelled') return <XCircle className="w-4 h-4" />;
+    return <Package className="w-4 h-4" />;
+  };
+
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method) {
+      case 'razorpay': return <CreditCard className="w-3 h-3" />;
+      case 'cod': return <Banknote className="w-3 h-3" />;
+      case 'upi': return <CreditCard className="w-3 h-3" />;
+      default: return <CreditCard className="w-3 h-3" />;
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return <Clock className="w-4 h-4" />;
-      case 'confirmed': return <CheckCircle className="w-4 h-4" />;
-      case 'processing': return <Package className="w-4 h-4" />;
-      case 'shipped': return <Truck className="w-4 h-4" />;
-      case 'delivered': return <Home className="w-4 h-4" />;
-      case 'cancelled': return <XCircle className="w-4 h-4" />;
-      default: return <Package className="w-4 h-4" />;
+  const getPaymentMethodText = (method: string) => {
+    switch (method) {
+      case 'razorpay': return 'Online';
+      case 'cod': return 'COD';
+      case 'upi': return 'UPI';
+      default: return method;
     }
   };
 
@@ -137,7 +155,7 @@ export default function UserOrdersPage() {
 
   const getStatusText = (status: string) => {
     const statusMap: Record<string, string> = {
-      'pending': 'Order Placed',
+      'pending': 'Pending',
       'confirmed': 'Confirmed',
       'processing': 'Processing',
       'shipped': 'Shipped',
@@ -147,12 +165,30 @@ export default function UserOrdersPage() {
     return statusMap[status] || status;
   };
 
+  const canCancelOrder = (order: Order) => {
+    // Only allow cancellation for pending orders with pending payment
+    if (order.orderStatus === 'pending' && order.paymentStatus === 'pending') {
+      const created = new Date(order.createdAt);
+      const now = new Date();
+      const diffTime = now.getTime() - created.getTime();
+      const diffHours = diffTime / (1000 * 60 * 60);
+      return diffHours <= 24; // Within 24 hours
+    }
+    return false;
+  };
+
+  const showCompletePaymentButton = (order: Order) => {
+    return order.paymentMethod === 'razorpay' && 
+           order.paymentStatus === 'pending' && 
+           order.orderStatus === 'pending';
+  };
+
   if (loading && orders.length === 0) {
     return (
       <div className="min-h-screen bg-white pt-20 md:pt-24">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 md:py-12">
           <div className="text-center">
-            <RefreshCw className="w-10 h-10 md:w-12 md:h-12 text-purple-600 animate-spin mx-auto mb-3 md:mb-4" />
+            <RefreshCw className="w-10 h-10 md:w-12 md:h-12 text-yellow-600 animate-spin mx-auto mb-3 md:mb-4" />
             <p className="text-gray-600 text-sm md:text-base">Loading your orders...</p>
           </div>
         </div>
@@ -166,7 +202,7 @@ export default function UserOrdersPage() {
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 md:py-4">
           <nav className="flex items-center text-xs md:text-sm text-gray-600">
-            <Link href="/" className="hover:text-purple-600 transition-colors">
+            <Link href="/" className="hover:text-yellow-600 transition-colors">
               Home
             </Link>
             <ChevronRight className="w-3 h-3 md:w-4 md:h-4 mx-2 text-gray-400" />
@@ -189,7 +225,7 @@ export default function UserOrdersPage() {
             <div className="flex gap-1 md:gap-2">
               <button
                 onClick={() => setSelectedStatus('all')}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm ${selectedStatus === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm ${selectedStatus === 'all' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
               >
                 All
               </button>
@@ -200,10 +236,10 @@ export default function UserOrdersPage() {
                 Pending
               </button>
               <button
-                onClick={() => setSelectedStatus('processing')}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm ${selectedStatus === 'processing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                onClick={() => setSelectedStatus('confirmed')}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg font-medium text-xs md:text-sm ${selectedStatus === 'confirmed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
               >
-                Processing
+                Confirmed
               </button>
               <button
                 onClick={() => setSelectedStatus('delivered')}
@@ -212,15 +248,6 @@ export default function UserOrdersPage() {
                 Delivered
               </button>
             </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={loadOrders}
-              className="px-3 md:px-4 py-1.5 md:py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-xs md:text-sm flex items-center"
-            >
-              <RefreshCw className="w-3 h-3 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-              Refresh
-            </button>
           </div>
         </div>
 
@@ -234,15 +261,8 @@ export default function UserOrdersPage() {
               <Filter className="w-4 h-4 mr-2" />
               Filter
               {selectedStatus !== 'all' && (
-                <span className="ml-2 w-2 h-2 bg-purple-600 rounded-full"></span>
+                <span className="ml-2 w-2 h-2 bg-yellow-600 rounded-full"></span>
               )}
-            </button>
-            
-            <button
-              onClick={loadOrders}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
           
@@ -255,7 +275,7 @@ export default function UserOrdersPage() {
                     setSelectedStatus('all');
                     setShowMobileFilters(false);
                   }}
-                  className={`px-3 py-2 rounded-lg font-medium text-sm ${selectedStatus === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                  className={`px-3 py-2 rounded-lg font-medium text-sm ${selectedStatus === 'all' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                 >
                   All
                 </button>
@@ -270,12 +290,12 @@ export default function UserOrdersPage() {
                 </button>
                 <button
                   onClick={() => {
-                    setSelectedStatus('processing');
+                    setSelectedStatus('confirmed');
                     setShowMobileFilters(false);
                   }}
-                  className={`px-3 py-2 rounded-lg font-medium text-sm ${selectedStatus === 'processing' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                  className={`px-3 py-2 rounded-lg font-medium text-sm ${selectedStatus === 'confirmed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                 >
-                  Processing
+                  Confirmed
                 </button>
                 <button
                   onClick={() => {
@@ -294,13 +314,13 @@ export default function UserOrdersPage() {
           {selectedStatus !== 'all' && (
             <div className="mt-2 flex items-center">
               <span className="text-xs text-gray-600 mr-2">Active filter:</span>
-              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedStatus)}`}>
-                {getStatusIcon(selectedStatus)}
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedStatus, 'pending')}`}>
+                {getStatusIcon(selectedStatus, 'pending')}
                 {getStatusText(selectedStatus)}
               </span>
               <button
                 onClick={() => setSelectedStatus('all')}
-                className="ml-2 text-xs text-purple-600 hover:text-purple-800"
+                className="ml-2 text-xs text-yellow-600 hover:text-yellow-800"
               >
                 Clear
               </button>
@@ -328,7 +348,7 @@ export default function UserOrdersPage() {
             <p className="text-gray-600 text-sm md:text-base mb-4 md:mb-6">You haven't placed any orders yet.</p>
             <Link
               href="/products"
-              className="inline-flex items-center px-4 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors font-medium text-sm md:text-base"
+              className="inline-flex items-center px-4 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-white rounded-lg hover:from-yellow-600 hover:to-amber-600 transition-colors font-medium text-sm md:text-base"
             >
               <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 mr-1.5 md:mr-2" />
               Start Shopping
@@ -345,8 +365,8 @@ export default function UserOrdersPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1.5 md:mb-2">
                           <span className="font-bold text-gray-900 text-sm md:text-base truncate">Order #{order.orderNumber}</span>
-                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
-                            {getStatusIcon(order.orderStatus)}
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus, order.paymentStatus)}`}>
+                            {getStatusIcon(order.orderStatus, order.paymentStatus)}
                             <span className="hidden sm:inline">{getStatusText(order.orderStatus)}</span>
                             <span className="sm:hidden">{getStatusText(order.orderStatus).charAt(0)}</span>
                           </span>
@@ -371,18 +391,46 @@ export default function UserOrdersPage() {
                       </div>
                     </div>
                     
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-lg">
+                          {getPaymentMethodIcon(order.paymentMethod)}
+                          <span className="text-xs font-medium text-gray-700">
+                            {getPaymentMethodText(order.paymentMethod)}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                          order.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          order.paymentStatus === 'failed' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                        </span>
+                      </div>
+                      
                       <div className="flex gap-2">
-                        {/* <Link
+                        {showCompletePaymentButton(order) && (
+                          <Link
+                            href={`/user/payment?orderId=${order._id}&orderNumber=${order.orderNumber}&amount=${order.total}`}
+                            className="px-3 py-1.5 md:py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white rounded-lg hover:from-yellow-600 hover:to-amber-600 transition-colors font-medium text-xs md:text-sm flex items-center"
+                          >
+                            <CreditCard className="w-3 h-3 md:w-4 md:h-4 mr-1.5" />
+                            <span className="hidden sm:inline">Complete Payment</span>
+                            <span className="sm:hidden">Pay Now</span>
+                          </Link>
+                        )}
+                        
+                        <Link
                           href={`/user/orders/${order._id}`}
-                          className="px-3 py-1.5 md:py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium text-xs md:text-sm flex items-center"
+                          className="px-3 py-1.5 md:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-xs md:text-sm flex items-center"
                         >
                           <Eye className="w-3 h-3 md:w-4 md:h-4 mr-1.5" />
                           <span className="hidden sm:inline">View Details</span>
                           <span className="sm:hidden">Details</span>
-                        </Link> */}
+                        </Link>
                         
-                        {order.orderStatus === 'pending' && (
+                        {canCancelOrder(order) && (
                           <button
                             onClick={() => handleCancelOrder(order._id)}
                             disabled={cancellingOrder === order._id}
@@ -444,8 +492,8 @@ export default function UserOrdersPage() {
 
                     {/* Status Timeline */}
                     <div className="lg:w-64 border-t lg:border-t-0 lg:border-l lg:pl-4 lg:pt-0 pt-3 mt-3 lg:mt-0">
-                      <div className="text-xs md:text-sm">
-                        <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                      <div className="text-xs md:text-sm space-y-2">
+                        <div className="flex items-center justify-between">
                           <span className="text-gray-600">Payment:</span>
                           <span className={`px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
                             order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
@@ -462,15 +510,42 @@ export default function UserOrdersPage() {
                           <span className="text-gray-600">Items:</span>
                           <span className="font-medium">{order.items.length}</span>
                         </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Order Status:</span>
+                          <span className={`font-medium ${
+                            order.orderStatus === 'delivered' ? 'text-green-600' :
+                            order.orderStatus === 'cancelled' ? 'text-red-600' :
+                            order.orderStatus === 'shipped' ? 'text-blue-600' :
+                            'text-gray-600'
+                          }`}>
+                            {getStatusText(order.orderStatus)}
+                          </span>
+                        </div>
                       </div>
                       
-                      <Link
-                        href={`/user/orders/${order._id}`}
-                        className="mt-3 md:mt-4 w-full py-1.5 md:py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-xs md:text-sm flex items-center justify-center"
-                      >
-                        <Eye className="w-3 h-3 md:w-4 md:h-4 mr-1.5" />
-                        View Full Details
-                      </Link>
+                      <div className="flex gap-2 mt-3 md:mt-4">
+                        {showCompletePaymentButton(order) && (
+                          <Link
+                            href={`/user/payment?orderId=${order._id}&orderNumber=${order.orderNumber}&amount=${order.total}`}
+                            className="flex-1 py-1.5 md:py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white rounded-lg hover:from-yellow-600 hover:to-amber-600 transition-colors font-medium text-xs md:text-sm flex items-center justify-center"
+                          >
+                            <CreditCard className="w-3 h-3 md:w-4 md:h-4 mr-1.5" />
+                            Pay Now
+                          </Link>
+                        )}
+                        
+                        <Link
+                          href={`/user/orders/${order._id}`}
+                          className={`flex-1 py-1.5 md:py-2 ${
+                            showCompletePaymentButton(order) 
+                              ? 'border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50' 
+                              : 'bg-yellow-600 text-white rounded-lg hover:bg-yellow-700'
+                          } transition-colors font-medium text-xs md:text-sm flex items-center justify-center`}
+                        >
+                          <Eye className="w-3 h-3 md:w-4 md:h-4 mr-1.5" />
+                          Details
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -506,7 +581,7 @@ export default function UserOrdersPage() {
                       onClick={() => setPage(pageNum)}
                       className={`w-7 h-7 md:w-8 md:h-8 rounded font-medium text-xs md:text-sm ${
                         page === pageNum
-                          ? 'bg-purple-600 text-white'
+                          ? 'bg-yellow-600 text-white'
                           : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                       }`}
                     >

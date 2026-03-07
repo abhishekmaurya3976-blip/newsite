@@ -126,6 +126,18 @@ export default function AdminOrderDetailsPage() {
 
     try {
       setUpdating(true);
+      
+      // For COD orders, when status is "delivered", also update payment status to "paid"
+      if (status === 'delivered' && order.paymentMethod === 'cod' && order.paymentStatus === 'pending') {
+        // First update payment status
+        const paymentResponse = await ordersApi.updatePaymentStatus(order._id, 'paid');
+        if (!paymentResponse.success) {
+          alert('Failed to update payment status');
+          return;
+        }
+      }
+
+      // Update order status
       const response = await ordersApi.updateOrderStatus(order._id, status, adminNotes);
       
       if (response.success) {
@@ -160,366 +172,38 @@ export default function AdminOrderDetailsPage() {
     }
   };
 
-  const handlePrintInvoice = () => {
-    setPrinting(true);
-    const printContent = generatePrintContent();
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Invoice - Order #${order?.orderNumber}</title>
-          <style>
-            @media print {
-              body { 
-                margin: 0; 
-                padding: 20px; 
-                font-family: Arial, sans-serif; 
-                font-size: 12px;
-                color: #000;
-              }
-              .invoice-container { 
-                max-width: 800px; 
-                margin: 0 auto; 
-                padding: 20px;
-                border: 1px solid #ddd;
-              }
-              .invoice-header { 
-                text-align: center; 
-                margin-bottom: 30px; 
-                border-bottom: 2px solid #000; 
-                padding-bottom: 20px; 
-              }
-              .invoice-header h1 { 
-                margin: 0 0 10px 0; 
-                font-size: 24px; 
-                color: #333;
-              }
-              .invoice-header p { 
-                margin: 5px 0; 
-                font-size: 14px;
-              }
-              .invoice-section { 
-                margin-bottom: 25px; 
-                page-break-inside: avoid;
-              }
-              .invoice-section h2 { 
-                border-bottom: 1px solid #ccc; 
-                padding-bottom: 5px; 
-                margin-bottom: 15px; 
-                font-size: 16px; 
-                color: #333;
-              }
-              .invoice-table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin: 15px 0; 
-                font-size: 12px;
-              }
-              .invoice-table th { 
-                background: #f5f5f5; 
-                border: 1px solid #ddd; 
-                padding: 8px; 
-                text-align: left; 
-                font-weight: bold;
-              }
-              .invoice-table td { 
-                border: 1px solid #ddd; 
-                padding: 8px; 
-                vertical-align: top;
-              }
-              .summary-table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin: 15px 0;
-              }
-              .summary-table td { 
-                padding: 6px 0; 
-                border-bottom: 1px solid #eee; 
-              }
-              .total-row { 
-                font-weight: bold; 
-                border-top: 2px solid #000; 
-                font-size: 14px;
-              }
-              .address-section { 
-                border: 1px solid #ddd; 
-                padding: 15px; 
-                margin: 15px 0; 
-                background: #f9f9f9;
-              }
-              .status-badge {
-                display: inline-block;
-                padding: 3px 10px;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: bold;
-                margin-left: 10px;
-              }
-              .company-info {
-                text-align: center;
-                margin-bottom: 30px;
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 20px;
-              }
-              .company-info h2 {
-                margin: 0 0 5px 0;
-                font-size: 18px;
-                color: #333;
-              }
-              .company-info p {
-                margin: 2px 0;
-                font-size: 11px;
-                color: #666;
-              }
-              .no-print { 
-                display: none !important; 
-              }
-              @page { 
-                margin: 15mm; 
-              }
-              .text-right { text-align: right; }
-              .text-center { text-align: center; }
-              .font-bold { font-weight: bold; }
-              .mb-1 { margin-bottom: 5px; }
-              .mb-2 { margin-bottom: 10px; }
-              .mb-3 { margin-bottom: 15px; }
-              .mt-2 { margin-top: 10px; }
-              .mt-3 { margin-top: 15px; }
-              .pt-3 { padding-top: 15px; }
-              .border-t { border-top: 1px solid #ddd; }
-            }
-          </style>
-        </head>
-        <body>
-          ${printContent}
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 250);
+  // ------------------ Premium print functions ------------------
+
+  // Format INR numbers
+  const formatNumber = (n: number) => {
+    return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  };
+
+  function capitalize(s: string) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // Small escape helper
+  function escapeHtml(str: any) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  // Convert image URL to absolute (ensures new window can load it)
+  function toAbsoluteUrl(src?: string) {
+    if (!src) return '';
+    try {
+      return new URL(src, window.location.origin).href;
+    } catch {
+      return src;
     }
-    setPrinting(false);
-  };
-
-  const generatePrintContent = () => {
-    if (!order) return '';
-    
-    const formatDate = (dateString: string) => {
-      return new Date(dateString).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    };
-
-    const getPaymentMethodText = (method: string) => {
-      switch (method) {
-        case 'credit_card': return 'Credit/Debit Card';
-        case 'upi': return 'UPI Payment';
-        case 'cod': return 'Cash on Delivery';
-        default: return method;
-      }
-    };
-
-    const getStatusColor = (status: string) => {
-      switch (status) {
-        case 'pending': return '#fef3c7';
-        case 'confirmed': return '#dbeafe';
-        case 'processing': return '#f3e8ff';
-        case 'shipped': return '#e0e7ff';
-        case 'delivered': return '#dcfce7';
-        case 'cancelled': return '#fee2e2';
-        default: return '#f3f4f6';
-      }
-    };
-
-    const getStatusTextColor = (status: string) => {
-      switch (status) {
-        case 'pending': return '#92400e';
-        case 'confirmed': return '#1e40af';
-        case 'processing': return '#6b21a8';
-        case 'shipped': return '#3730a3';
-        case 'delivered': return '#166534';
-        case 'cancelled': return '#991b1b';
-        default: return '#374151';
-      }
-    };
-
-    return `
-      <div class="invoice-container">
-        <!-- Company Header -->
-        <div class="company-info">
-          <h2>ARTNSTUFF</h2>
-          <p>Email: info@artnstuff.com | Phone: +91 1234567890</p>
-          <p>Address: 123 Art Street, Creative City, India</p>
-        </div>
-
-        <!-- Order Header -->
-        <div class="invoice-header">
-          <h1>INVOICE</h1>
-          <div class="mb-2">
-            <strong>Order #${order.orderNumber}</strong>
-            <span class="status-badge" style="background: ${getStatusColor(order.orderStatus)}; color: ${getStatusTextColor(order.orderStatus)};">
-              ${order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-            </span>
-          </div>
-          <p><strong>Placed on:</strong> ${formatDate(order.createdAt)}</p>
-          <p><strong>Invoice Date:</strong> ${new Date().toLocaleDateString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-          })}</p>
-        </div>
-
-        <!-- Customer Information -->
-        <div class="invoice-section">
-          <h2>Customer Information</h2>
-          <table class="summary-table">
-            <tr>
-              <td><strong>Name:</strong></td>
-              <td>${order.shippingAddress.firstName} ${order.shippingAddress.lastName}</td>
-            </tr>
-            <tr>
-              <td><strong>Email:</strong></td>
-              <td>${order.shippingAddress.email}</td>
-            </tr>
-            <tr>
-              <td><strong>Phone:</strong></td>
-              <td>${order.shippingAddress.phone}</td>
-            </tr>
-            <tr>
-              <td><strong>Order Status:</strong></td>
-              <td>${order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}</td>
-            </tr>
-            <tr>
-              <td><strong>Payment Status:</strong></td>
-              <td>${order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}</td>
-            </tr>
-          </table>
-        </div>
-
-        <!-- Order Items -->
-        <div class="invoice-section">
-          <h2>Order Items</h2>
-          <table class="invoice-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Quantity</th>
-                <th>Unit Price (₹)</th>
-                <th class="text-right">Total (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${order.items.map((item, index) => `
-                <tr>
-                  <td>${index + 1}. ${item.productName}</td>
-                  <td>${item.quantity}</td>
-                  <td>₹${item.price.toLocaleString()}</td>
-                  <td class="text-right">₹${(item.quantity * item.price).toLocaleString()}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Order Notes -->
-        ${order.orderNotes ? `
-          <div class="invoice-section">
-            <h2>Order Notes</h2>
-            <div style="padding: 10px; border: 1px dashed #ddd; border-radius: 4px;">
-              <p style="margin: 0;">${order.orderNotes}</p>
-            </div>
-          </div>
-        ` : ''}
-
-        <!-- Order Summary -->
-        <div class="invoice-section">
-          <h2>Order Summary</h2>
-          <table class="summary-table" style="width: 50%; margin-left: auto;">
-            <tr>
-              <td>Subtotal (${order.items.length} items)</td>
-              <td class="text-right">₹${order.subtotal.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td>Shipping</td>
-              <td class="text-right">${order.shippingFee === 0 ? 'FREE' : `₹${order.shippingFee.toLocaleString()}`}</td>
-            </tr>
-            <tr>
-              <td>Tax (18% GST)</td>
-              <td class="text-right">₹${order.tax.toLocaleString()}</td>
-            </tr>
-            <tr class="total-row">
-              <td><strong>TOTAL AMOUNT</strong></td>
-              <td class="text-right"><strong>₹${order.total.toLocaleString()}</strong></td>
-            </tr>
-          </table>
-          <p style="text-align: right; font-size: 11px; color: #666; margin-top: 5px;">
-            Inclusive of all taxes
-          </p>
-        </div>
-
-        <!-- Shipping Address -->
-        <div class="invoice-section">
-          <h2>Shipping Address</h2>
-          <div class="address-section">
-            <p style="margin: 0 0 8px 0;"><strong>${order.shippingAddress.firstName} ${order.shippingAddress.lastName}</strong></p>
-            <p style="margin: 0 0 5px 0;">${order.shippingAddress.address}</p>
-            ${order.shippingAddress.apartment ? `<p style="margin: 0 0 5px 0;">${order.shippingAddress.apartment}</p>` : ''}
-            <p style="margin: 0 0 5px 0;">${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zipCode}</p>
-            <p style="margin: 0 0 5px 0;">${order.shippingAddress.country}</p>
-            <div class="border-t pt-3 mt-2">
-              <p style="margin: 5px 0;">📞 ${order.shippingAddress.phone}</p>
-              <p style="margin: 5px 0;">✉️ ${order.shippingAddress.email}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Payment Information -->
-        <div class="invoice-section">
-          <h2>Payment Information</h2>
-          <table class="summary-table">
-            <tr>
-              <td><strong>Payment Method:</strong></td>
-              <td>${getPaymentMethodText(order.paymentMethod)}</td>
-            </tr>
-            <tr>
-              <td><strong>Payment Status:</strong></td>
-              <td>${order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}</td>
-            </tr>
-          </table>
-        </div>
-
-        <!-- Footer -->
-        <div class="invoice-section" style="margin-top: 40px;">
-          <div style="border-top: 2px solid #000; padding-top: 20px;">
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #666;">
-              <div style="text-align: center; flex: 1;">
-                <p style="margin: 0;">___________________</p>
-                <p style="margin: 5px 0 0 0;">Customer Signature</p>
-              </div>
-              <div style="text-align: center; flex: 1;">
-                <p style="margin: 0;">___________________</p>
-                <p style="margin: 5px 0 0 0;">Company Stamp & Signature</p>
-              </div>
-            </div>
-          </div>
-          <div style="text-align: center; margin-top: 30px; font-size: 10px; color: #666;">
-            <p style="margin: 5px 0;">Thank you for your business!</p>
-            <p style="margin: 5px 0;">This is a computer generated invoice, no signature required.</p>
-          </div>
-        </div>
-      </div>
-    `;
-  };
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -537,6 +221,211 @@ export default function AdminOrderDetailsPage() {
       case 'upi': return 'UPI Payment';
       case 'cod': return 'Cash on Delivery';
       default: return method;
+    }
+  };
+
+  // Build the printable HTML for the invoice (full-page, mobile-friendly)
+  const buildPrintHTML = (o: Order) => {
+    return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Invoice - ${escapeHtml(o.orderNumber)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #6D28D9; /* purple-600 */
+    --muted: #6B7280;
+    --bg: #fff;
+  }
+  html,body { height:100%; margin:0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:var(--bg); color:#111827; -webkit-print-color-adjust: exact; }
+  .page { max-width:900px; margin:18px auto; padding:24px; box-shadow: 0 10px 30px rgba(2,6,23,0.06); border-radius:8px; background:#fff; }
+  header{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .brand { display:flex; gap:12px; align-items:center; }
+  .brand .title { font-weight:700; font-size:18px; color:var(--brand); }
+  .meta { text-align:right; }
+  .meta .big { font-weight:700; font-size:16px; }
+  .section { margin-top:20px; }
+  .grid { display:flex; gap:20px; }
+  .col { flex:1; }
+  .address { background:#F9FAFB; padding:12px; border-radius:6px; border:1px solid #E5E7EB; font-size:13px; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
+  th,td { padding:12px 8px; text-align:left; border-bottom:1px solid #EFF2F7; vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.02em; }
+  .right { text-align:right; }
+  .totals { margin-top:12px; display:flex; justify-content:flex-end; gap:8px; }
+  .totals .box { width:320px; border-radius:6px; padding:12px; background:#F8FAFF; border:1px solid #E6EEF8; }
+  .small { font-size:12px; color:var(--muted); }
+  .note { margin-top:16px; font-size:13px; color:var(--muted); }
+  img.product { max-width:80px; max-height:80px; object-fit:cover; border-radius:6px; border:1px solid #F1F5F9; }
+  .center { text-align:center; }
+  .success { color: #059669; font-weight:700; }
+  /* Print setup */
+  @page { size: A4; margin: 12mm; }
+  @media print {
+    body { margin:0; background: #fff; -webkit-print-color-adjust:exact; }
+    .page { box-shadow: none; margin:0; border-radius:0; }
+    .no-print { display:none !important; }
+  }
+  /* Mobile scaling for "Save as PDF" on phones */
+  @media (max-width:420px) {
+    .page { padding:14px; margin:6px; }
+    img.product { max-width:64px; max-height:64px; }
+    th,td { padding:10px 6px; font-size:12px; }
+    .totals .box { width:100%; }
+  }
+</style>
+</head>
+<body>
+  <div class="page" id="invoice">
+    <header>
+      <div class="brand">
+        <div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#7C3AED,#EC4899);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">AS</div>
+        <div>
+          <div class="title">Incred Wellness Admin</div>
+          <div class="small">Invoice for Order</div>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="small">Order</div>
+        <div class="big">#${escapeHtml(o.orderNumber)}</div>
+        <div class="small">Placed: ${escapeHtml(formatDate(o.createdAt))}</div>
+      </div>
+    </header>
+
+    <div class="section grid" style="margin-top:22px;">
+      <div class="col">
+        <div class="small">Sold To</div>
+        <div class="address" style="margin-top:8px;">
+          <div style="font-weight:700; color:#111827;">${escapeHtml(o.shippingAddress.firstName)} ${escapeHtml(o.shippingAddress.lastName)}</div>
+          <div>${escapeHtml(o.shippingAddress.address)}${o.shippingAddress.apartment ? ', ' + escapeHtml(o.shippingAddress.apartment) : ''}</div>
+          <div>${escapeHtml(o.shippingAddress.city)}, ${escapeHtml(o.shippingAddress.state)} - ${escapeHtml(o.shippingAddress.zipCode)}</div>
+          <div>${escapeHtml(o.shippingAddress.country)}</div>
+          <div style="margin-top:8px;">📞 ${escapeHtml(o.shippingAddress.phone)} | ✉️ ${escapeHtml(o.shippingAddress.email)}</div>
+        </div>
+      </div>
+
+      <div class="col" style="flex:0 0 300px;">
+        <div class="small">Payment</div>
+        <div class="address" style="margin-top:8px;">
+          <div style="font-weight:700;">${escapeHtml(getPaymentMethodText(o.paymentMethod))}</div>
+          <div class="small" style="margin-top:6px;">Status: <span style="font-weight:700; color:${o.paymentStatus === 'paid' ? '#059669' : o.paymentStatus === 'pending' ? '#B45309' : '#DC2626'}">${escapeHtml(capitalize(o.paymentStatus))}</span></div>
+          <div class="small" style="margin-top:8px;">Order Status: <strong>${escapeHtml(capitalize(o.orderStatus))}</strong></div>
+          ${o.trackingNumber ? `<div class="small" style="margin-top:8px;">Tracking #: ${escapeHtml(o.trackingNumber)}${o.shippingProvider ? ` (Carrier: ${escapeHtml(o.shippingProvider)})` : ''}</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer Information (Admin specific) -->
+    ${o.user ? `
+    <div class="section">
+      <div class="small">Customer Information</div>
+      <div class="address" style="margin-top:8px;">
+        <div style="font-weight:700; color:#111827;">${escapeHtml(o.user.name)}</div>
+        ${o.user.email ? `<div>📧 ${escapeHtml(o.user.email)}</div>` : ''}
+        ${o.user.phone ? `<div>📞 ${escapeHtml(o.user.phone)}</div>` : ''}
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="section">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:8%"></th>
+            <th>Product</th>
+            <th style="width:12%" class="center">Qty</th>
+            <th style="width:18%" class="right">Price</th>
+            <th style="width:18%" class="right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${o.items.map(item => `
+            <tr>
+              <td class="center">${ item.image ? `<img class="product" src="${escapeHtml(toAbsoluteUrl(item.image))}" alt="${escapeHtml(item.productName)}" />` : '' }</td>
+              <td>
+                <div style="font-weight:600;">${escapeHtml(item.productName)}</div>
+              </td>
+              <td class="center">${item.quantity}</td>
+              <td class="right">₹${formatNumber(item.price)}</td>
+              <td class="right">₹${formatNumber(item.price * item.quantity)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+    <div class="totals">
+    <div class="box">
+    <div style="display:flex;justify-content:space-between"><div class="small">Subtotal</div><div>₹${formatNumber(o.subtotal)}</div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;"><div class="small">Shipping</div><div>${o.shippingFee === 0 ? 'FREE' : '₹' + formatNumber(o.shippingFee)}</div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;"><div class="small">Inclusive of all taxes</div><div>₹${formatNumber(o.tax)}</div></div>
+    <hr style="border:none;border-top:1px dashed #E6EEF8;margin:10px 0;">
+    
+    <!-- Total Amount (bold, large) -->
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-bottom:2px;">
+      <div>Total Amount</div>
+      <div>₹${formatNumber(o.total)}</div>
+    </div>
+    <!-- Small note -->
+    <div style="display:flex;justify-content:flex-end;font-size:12px;color:var(--muted);">
+      Inclusive of all taxes with discount
+    </div>
+    </div>
+   </div>
+
+      ${o.orderNotes ? `<div class="note"><strong>Customer Notes:</strong> ${escapeHtml(o.orderNotes)}</div>` : ''}
+      ${o.adminNotes ? `<div class="note"><strong>Admin Notes:</strong> ${escapeHtml(o.adminNotes)}</div>` : ''}
+      <div class="note" style="margin-top:10px;">This is a computer-generated invoice for order <strong>#${escapeHtml(o.orderNumber)}</strong>. Thank you for shopping with us.</div>
+    </div>
+
+    <footer style="margin-top:22px; font-size:12px; color:var(--muted);">
+      <div>ARTNSTUFF • Support: support@example.com • +91 98765 43210</div>
+      <div style="margin-top:4px; font-size:11px;">This is an internal admin invoice copy</div>
+    </footer>
+  </div>
+
+<script>
+  // Auto-trigger print when the document is ready.
+  window.onload = function() {
+    setTimeout(function() {
+      window.print();
+      // Close window after printing on most browsers (avoid if you want user to keep it open)
+      setTimeout(() => { window.close(); }, 300);
+    }, 300);
+  };
+</script>
+</body>
+</html>`;
+  };
+
+  const handlePrintInvoice = async () => {
+    if (!order) return;
+    try {
+      setPrinting(true);
+
+      // Build printable HTML
+      const html = buildPrintHTML(order);
+
+      // Open new window and write the markup
+      const printWindow = window.open('', '_blank', 'toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=900,height=800');
+      if (!printWindow) {
+        alert('Please allow popups for this site to print the invoice.');
+        setPrinting(false);
+        return;
+      }
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      // auto print executed in the print window's onload
+    } catch (err: any) {
+      console.error('Print error', err);
+      alert('Unable to print invoice. Please try saving as PDF from your browser.');
+    } finally {
+      // small delay so UI spinner shows briefly
+      setTimeout(() => setPrinting(false), 700);
     }
   };
 
@@ -978,7 +867,7 @@ export default function AdminOrderDetailsPage() {
                     </div>
                     
                     <div className="flex justify-between">
-                      <span className="text-gray-600 text-sm">Tax (18% GST)</span>
+                      <span className="text-gray-600 text-sm">Inclusive of all taxes</span>
                       <span className="font-medium text-sm">₹{order.tax.toLocaleString()}</span>
                     </div>
                     
@@ -989,7 +878,7 @@ export default function AdminOrderDetailsPage() {
                           <span className="text-lg font-bold text-gray-900">
                             ₹{order.total.toLocaleString()}
                           </span>
-                          <p className="text-xs text-gray-500">Inclusive of all taxes</p>
+                          <p className="text-xs text-gray-500">Inclusive of all taxes with discount</p>
                         </div>
                       </div>
                     </div>
@@ -1099,7 +988,7 @@ export default function AdminOrderDetailsPage() {
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Tax (18% GST)</span>
+                    <span className="text-gray-600">Inclusive of all taxes</span>
                     <span className="font-medium">₹{order.tax.toLocaleString()}</span>
                   </div>
                   
@@ -1110,7 +999,7 @@ export default function AdminOrderDetailsPage() {
                         <span className="text-2xl font-bold text-gray-900">
                           ₹{order.total.toLocaleString()}
                         </span>
-                        <p className="text-xs text-gray-500">Inclusive of all taxes</p>
+                        <p className="text-xs text-gray-500">Inclusive of all taxes with discount</p>
                       </div>
                     </div>
                   </div>

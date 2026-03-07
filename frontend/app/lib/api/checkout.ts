@@ -18,10 +18,29 @@ interface OrderData {
     zipCode: string;
     country: string;
   };
-  paymentMethod: 'credit_card' | 'upi' | 'cod';
-  paymentDetails: any;
+  paymentMethod: 'razorpay' | 'cod' | 'upi';
   orderNotes: string;
   saveAddress: boolean;
+}
+
+interface PaymentData {
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  key: string;
+}
+
+interface CreateOrderResponse {
+  order: {
+    _id: string;
+    orderNumber: string;
+    orderStatus: string;
+    paymentStatus: string;
+    total: number;
+    paymentMethod: string;
+  };
+  payment?: PaymentData;
+  requiresPayment: boolean;
 }
 
 class CheckoutAPI {
@@ -46,13 +65,10 @@ class CheckoutAPI {
     return headers;
   }
 
-  // Create order
-  async createOrder(orderData: OrderData): Promise<ApiResponse<any>> {
+  // Create order (now returns payment details for Razorpay)
+  async createOrder(orderData: OrderData): Promise<ApiResponse<CreateOrderResponse>> {
     try {
-      console.log('Creating order with data:', {
-        ...orderData,
-        paymentDetails: orderData.paymentMethod === 'cod' ? {cod: true} : orderData.paymentDetails
-      });
+      console.log('Creating order with data:', orderData);
 
       const response = await fetch(`${this.baseUrl}/orders`, {
         method: 'POST',
@@ -60,36 +76,47 @@ class CheckoutAPI {
         body: JSON.stringify(orderData),
       });
 
-      const responseText = await response.text();
-      console.log('Response status:', response.status);
-      console.log('Response text:', responseText);
-
-      let result: ApiResponse<any>;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse response as JSON:', parseError);
-        return {
-          success: false,
-          error: 'Server returned invalid response'
-        };
-      }
-
       if (!response.ok) {
-        console.error('Order creation failed:', result);
-        return {
-          success: false,
-          error: result.message || `Failed to create order: ${response.status}`
-        };
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create order');
       }
 
-      console.log('Order created successfully:', result);
+      const result: ApiResponse<CreateOrderResponse> = await response.json();
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('CheckoutAPI.createOrder error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create order'
+        error: error.message || 'Failed to create order'
+      };
+    }
+  }
+
+  // Verify Razorpay payment
+  async verifyPayment(orderId: string, paymentData: {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/orders/${orderId}/verify-payment`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(paymentData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Payment verification failed');
+      }
+
+      const result: ApiResponse<any> = await response.json();
+      return result;
+    } catch (error: any) {
+      console.error('CheckoutAPI.verifyPayment error:', error);
+      return {
+        success: false,
+        error: error.message || 'Payment verification failed'
       };
     }
   }
@@ -110,7 +137,7 @@ class CheckoutAPI {
 
       const result: ApiResponse<any> = await response.json();
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('CheckoutAPI.getOrder error:', error);
       return {
         success: false,
@@ -146,7 +173,7 @@ class CheckoutAPI {
 
       const result: ApiResponse<any> = await response.json();
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('CheckoutAPI.getUserOrders error:', error);
       return {
         success: false,
@@ -173,7 +200,7 @@ class CheckoutAPI {
 
       const result: ApiResponse<any> = await response.json();
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('CheckoutAPI.cancelOrder error:', error);
       return {
         success: false,

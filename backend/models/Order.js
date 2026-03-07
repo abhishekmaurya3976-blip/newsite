@@ -80,11 +80,35 @@ const shippingAddressSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+const couponInfoSchema = new mongoose.Schema({
+  code: {
+    type: String,
+    default: ''
+  },
+  name: {
+    type: String,
+    default: ''
+  },
+  discountType: {
+    type: String,
+    enum: ['percentage', 'fixed', 'free_shipping', ''],
+    default: ''
+  },
+  discountValue: {
+    type: Number,
+    default: 0
+  },
+  discountAmount: {
+    type: Number,
+    default: 0
+  }
+}, { _id: false });
+
 const paymentDetailsSchema = new mongoose.Schema({
   method: {
     type: String,
     required: true,
-    enum: ['credit_card', 'upi', 'cod']
+    enum: ['razorpay', 'cod', 'upi']
   },
   status: {
     type: String,
@@ -92,7 +116,15 @@ const paymentDetailsSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'failed', 'refunded'],
     default: 'pending'
   },
-  transactionId: {
+  razorpayOrderId: {
+    type: String,
+    default: ''
+  },
+  razorpayPaymentId: {
+    type: String,
+    default: ''
+  },
+  razorpaySignature: {
     type: String,
     default: ''
   },
@@ -117,7 +149,7 @@ const orderSchema = new mongoose.Schema({
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const day = date.getDate().toString().padStart(2, '0');
       const random = Math.floor(1000 + Math.random() * 9000);
-      return `ART${year}${month}${day}${random}`;
+      return `ORD${year}${month}${day}${random}`;
     }
   },
   userId: {
@@ -127,6 +159,7 @@ const orderSchema = new mongoose.Schema({
   },
   items: [orderItemSchema],
   shippingAddress: shippingAddressSchema,
+  coupon: couponInfoSchema,
   payment: paymentDetailsSchema,
   orderStatus: {
     type: String,
@@ -148,7 +181,14 @@ const orderSchema = new mongoose.Schema({
   tax: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
+    default: 0
+  },
+  discount: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
   },
   total: {
     type: Number,
@@ -195,29 +235,24 @@ orderSchema.virtual('user', {
   justOne: true
 });
 
-// Virtual for products
-orderSchema.virtual('products', {
-  ref: 'Product',
-  localField: 'items.productId',
-  foreignField: '_id',
-  justOne: false
-});
-
 // Indexes for better query performance
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ orderNumber: 1 });
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ 'payment.status': 1 });
 orderSchema.index({ createdAt: -1 });
+orderSchema.index({ 'payment.razorpayOrderId': 1 });
+orderSchema.index({ 'coupon.code': 1 });
 
-// Static method to calculate order totals
-orderSchema.statics.calculateTotals = function(items) {
+// Static method to calculate totals with coupon
+orderSchema.statics.calculateTotals = function(items, couponDiscount = 0) {
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingFee = subtotal > 499 ? 0 : 50; // Free shipping over ₹499
-  const tax = subtotal * 0.18; // 18% GST
-  const total = subtotal + shippingFee + tax;
+  const shippingFee = subtotal > 499 ? 0 : 50;
+  const tax = subtotal * 0.18;
+  const discount = couponDiscount;
+  const total = subtotal + shippingFee + tax - discount;
 
-  return { subtotal, shippingFee, tax, total };
+  return { subtotal, shippingFee, tax, discount, total };
 };
 
 // Method to update order status
@@ -225,10 +260,13 @@ orderSchema.methods.updateStatus = async function(status, notes = '') {
   this.orderStatus = status;
   this.updatedAt = Date.now();
 
-  if (status === 'delivered') {
+  if (status === 'confirmed') {
+    this.payment.status = 'paid';
+  } else if (status === 'delivered') {
     this.deliveredAt = Date.now();
   } else if (status === 'cancelled') {
     this.cancelledAt = Date.now();
+    this.payment.status = 'refunded';
     if (notes) {
       this.cancelledReason = notes;
     }
@@ -239,11 +277,6 @@ orderSchema.methods.updateStatus = async function(status, notes = '') {
   }
 
   return await this.save();
-};
-
-// Method to cancel order
-orderSchema.methods.cancelOrder = async function(reason = '') {
-  return await this.updateStatus('cancelled', reason);
 };
 
 const Order = mongoose.model('Order', orderSchema);

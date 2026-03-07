@@ -9,6 +9,9 @@ router.use(auth);
 // POST /api/orders - Create new order
 router.post('/', orderController.createOrder);
 
+// POST /api/orders/:id/verify-payment - Verify Razorpay payment
+router.post('/:id/verify-payment', orderController.verifyPayment);
+
 // GET /api/orders/user - Get user's orders
 router.get('/user', orderController.getUserOrders);
 
