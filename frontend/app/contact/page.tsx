@@ -37,7 +37,7 @@ const playfair = Playfair_Display({
 
 export default function ContactPage() {
   // WhatsApp contact information
-  const whatsappNumber = '919967913882';
+  const whatsappNumber = '919967202612';
   const whatsappMessage = 'Hello Art Plazaa, I have a query about your products.';
 
   const handleWhatsAppClick = () => {
@@ -132,7 +132,7 @@ export default function ContactPage() {
                   href="tel:+919967202612" 
                   className="text-2xl font-bold text-gray-900 hover:text-amber-600 transition-colors duration-300 block"
                 >
-                  +91 9967202612
+                  +91 9967202612 
                 </a>
                 <p className="text-gray-600">Store Manager: Sachin</p>
                 <div className="pt-4">
@@ -239,7 +239,7 @@ export default function ContactPage() {
                 </button>
 
                 <a
-                  href="tel:+91 9967913882"
+                  href="tel:+91 9967202612 "
                   className="w-full flex items-center justify-between px-4 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl hover:bg-white/30 transition-all duration-300 group/quick"
                 >
                   <div className="flex items-center">
@@ -326,7 +326,7 @@ export default function ContactPage() {
                 What's the best way to contact you?
               </h3>
               <p className="text-gray-600">
-                For quickest response, use WhatsApp or call us directly at <strong className="text-amber-600">+91 9967913882</strong>. 
+                For quickest response, use WhatsApp or call us directly at <strong className="text-amber-600">+91 9967202612 </strong>. 
                 We're available 7 days a week from 9:30 AM to 8:30 PM.
               </p>
             </div>
@@ -385,11 +385,11 @@ export default function ContactPage() {
               Chat on WhatsApp
             </button>
             <a 
-              href="tel:+919967913882" 
+              href="tel:+919967202612" 
               className="px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white/10 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center justify-center"
             >
               <Phone className="w-5 h-5 mr-2" />
-              Call Now: +91 9967913882
+              Call Now: +91 9967202612 
             </a>
           </div>
         </div>

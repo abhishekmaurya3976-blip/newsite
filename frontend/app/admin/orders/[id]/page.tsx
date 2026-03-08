@@ -281,9 +281,9 @@ export default function AdminOrderDetailsPage() {
   <div class="page" id="invoice">
     <header>
       <div class="brand">
-        <div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#7C3AED,#EC4899);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">AS</div>
+        <div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#7C3AED,#EC4899);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">AP</div>
         <div>
-          <div class="title">Incred Wellness Admin</div>
+          <div class="title">Art Plazaa Admin</div>
           <div class="small">Invoice for Order</div>
         </div>
       </div>

@@ -96,7 +96,7 @@ export default function AboutPage() {
                     href="tel:+919967202612" 
                     className="text-xl font-bold text-amber-600 hover:text-amber-700 transition-colors duration-300"
                   >
-                    Sachin – 9967202612
+                    Sachin – 9967202612 
                   </a>
                 </div>
                 <div className="pt-2">

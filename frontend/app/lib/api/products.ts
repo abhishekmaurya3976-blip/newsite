@@ -264,9 +264,18 @@ class ProductAPI {
         body: JSON.stringify(cleanPayload),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create product: ${response.status}`);
-      }
+    if (!response.ok) {
+    let errorMessage = `Failed to create product: ${response.status}`;
+    try {
+     const errorData = await response.json();
+      if (errorData && errorData.message) {
+      errorMessage = errorData.message; // Use the server's message
+     }
+    } catch (e) {
+    // Ignore JSON parsing errors, fall back to status message
+   }
+    throw new Error(errorMessage);
+   }
 
       const result: ApiResponse<any> = await response.json();
       
