@@ -123,12 +123,56 @@ export default function AdminOrdersPage() {
     }
   }, [filters]);
 
-  // Load statistics
+  // Load statistics (adjusted to exclude cancelled orders from revenue)
   const loadStats = useCallback(async () => {
     try {
       setStatsLoading(true);
       const statsData = await ordersApi.getStats();
-      setStats(statsData);
+
+      // Subtract revenue from cancelled orders
+      let totalCancelledRevenue = 0;
+      let cancelledCount = 0;
+
+      try {
+        // Get cancelled count from stats if available
+        const cancelledStat = statsData.ordersByStatus?.find(s => s.status === 'cancelled');
+        if (cancelledStat) {
+          cancelledCount = cancelledStat.count;
+        }
+
+        // Fetch all cancelled orders to calculate their total revenue
+        // Using a high limit (1000) as an assumption; if you expect more than 1000 cancelled orders,
+        // implement pagination to fetch all pages.
+        const cancelledOrdersResult = await ordersApi.getAllOrders({ 
+          status: 'cancelled', 
+          limit: 1000 
+        });
+
+        if (cancelledOrdersResult?.orders) {
+          totalCancelledRevenue = cancelledOrdersResult.orders.reduce(
+            (sum, order) => sum + order.total, 
+            0
+          );
+          // If count wasn't available from stats, use the fetched length
+          if (!cancelledStat) {
+            cancelledCount = cancelledOrdersResult.orders.length;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching cancelled orders for revenue adjustment:', err);
+        // Fallback: keep original stats (no adjustment)
+      }
+
+      // Adjust stats: subtract cancelled revenue and recalculate average based on non-cancelled orders
+      const adjustedStats = {
+        ...statsData,
+        totalRevenue: statsData.totalRevenue - totalCancelledRevenue,
+        avgOrderValue: (statsData.totalOrders - cancelledCount) > 0 
+          ? (statsData.totalRevenue - totalCancelledRevenue) / (statsData.totalOrders - cancelledCount) 
+          : 0,
+      };
+
+      setStats(adjustedStats);
       setStatsLoading(false);
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -334,7 +378,7 @@ export default function AdminOrdersPage() {
             </div>
           </div>
 
-          {/* Total Revenue */}
+          {/* Total Revenue (adjusted) */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -342,7 +386,7 @@ export default function AdminOrdersPage() {
                 <p className="text-2xl font-bold text-gray-900">
                   {statsLoading ? '...' : `₹${stats?.totalRevenue?.toLocaleString() || 0}`}
                 </p>
-                <p className="text-xs text-green-600 mt-1">All time</p>
+                <p className="text-xs text-green-600 mt-1">Excluding cancelled</p>
               </div>
               <div className="w-10 h-10 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-green-600" />
@@ -350,7 +394,7 @@ export default function AdminOrdersPage() {
             </div>
           </div>
 
-          {/* Average Order Value */}
+          {/* Average Order Value (adjusted) */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -358,7 +402,7 @@ export default function AdminOrdersPage() {
                 <p className="text-2xl font-bold text-gray-900">
                   {statsLoading ? '...' : `₹${stats?.avgOrderValue?.toLocaleString() || 0}`}
                 </p>
-                <p className="text-xs text-blue-600 mt-1">Per order</p>
+                <p className="text-xs text-blue-600 mt-1">Per completed order</p>
               </div>
               <div className="w-10 h-10 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-full flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-blue-600" />

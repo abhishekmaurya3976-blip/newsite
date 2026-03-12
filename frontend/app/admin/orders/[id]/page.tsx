@@ -226,6 +226,10 @@ export default function AdminOrderDetailsPage() {
 
   // Build the printable HTML for the invoice (full-page, mobile-friendly)
   const buildPrintHTML = (o: Order) => {
+    // Calculate 18% GST on subtotal
+    const gstAmount = Math.round(o.subtotal * 0.18 * 100) / 100;
+    const computedTotal = o.subtotal + gstAmount + o.shippingFee;
+
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -359,17 +363,17 @@ export default function AdminOrderDetailsPage() {
     <div class="box">
     <div style="display:flex;justify-content:space-between"><div class="small">Subtotal</div><div>₹${formatNumber(o.subtotal)}</div></div>
     <div style="display:flex;justify-content:space-between;margin-top:6px;"><div class="small">Shipping</div><div>${o.shippingFee === 0 ? 'FREE' : '₹' + formatNumber(o.shippingFee)}</div></div>
-    <div style="display:flex;justify-content:space-between;margin-top:6px;"><div class="small">Inclusive of all taxes</div><div>₹${formatNumber(o.tax)}</div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;"><div class="small">GST (18%)</div><div>₹${formatNumber(gstAmount)}</div></div>
     <hr style="border:none;border-top:1px dashed #E6EEF8;margin:10px 0;">
     
     <!-- Total Amount (bold, large) -->
     <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-bottom:2px;">
       <div>Total Amount</div>
-      <div>₹${formatNumber(o.total)}</div>
+      <div>₹${formatNumber(computedTotal)}</div>
     </div>
     <!-- Small note -->
     <div style="display:flex;justify-content:flex-end;font-size:12px;color:var(--muted);">
-      Inclusive of all taxes with discount
+      Inclusive of 18% GST
     </div>
     </div>
    </div>
