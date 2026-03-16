@@ -248,7 +248,7 @@ orderSchema.index({ 'coupon.code': 1 });
 orderSchema.statics.calculateTotals = function(items, couponDiscount = 0) {
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shippingFee = subtotal > 499 ? 0 : 50;
-  const tax = subtotal * 0.18;
+  const tax = 0;
   const discount = couponDiscount;
   const total = subtotal + shippingFee + tax - discount;
 

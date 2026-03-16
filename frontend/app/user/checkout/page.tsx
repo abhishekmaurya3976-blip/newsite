@@ -120,7 +120,7 @@ export default function CheckoutPage() {
   const calculateTotals = () => {
     const subtotal = totalPrice;
     const shippingFee = subtotal >= 499 ? 0 : 50;
-    const tax = subtotal * 0.18;
+    const tax = 0;
     
     // Calculate discount based on coupon
     let discount = 0;
@@ -1229,10 +1229,10 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* NEW: Tax line */}
-                  <div className="flex justify-between">
+                  {/* <div className="flex justify-between">
                     <span className="text-gray-600 text-sm">Inclusive of all taxes</span>
                     <span className="font-medium text-sm">₹{totals.tax.toLocaleString()}</span>
-                  </div>
+                  </div> */}
                   
                   <div className="border-t border-gray-200 pt-3">
                     <div className="flex justify-between">
@@ -1347,10 +1347,10 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* NEW: Tax line */}
-                <div className="flex justify-between">
+                {/* <div className="flex justify-between">
                   <span className="text-gray-600">Inclusive of all taxes</span>
                   <span className="font-medium">₹{totals.tax.toLocaleString()}</span>
-                </div>
+                </div> */}
                 
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex justify-between">

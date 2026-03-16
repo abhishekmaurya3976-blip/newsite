@@ -246,7 +246,7 @@ exports.createOrder = async (req, res) => {
 
     // Calculate totals with coupon discount
     const shippingFee = subtotal > 499 ? 0 : 50;
-    const tax = subtotal * 0.18;
+    const tax = 0;
     const discount = couponDiscount;
     const total = subtotal + shippingFee + tax - discount;
 

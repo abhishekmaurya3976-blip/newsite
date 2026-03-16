@@ -226,10 +226,6 @@ export default function AdminOrderDetailsPage() {
 
   // Build the printable HTML for the invoice (full-page, mobile-friendly)
   const buildPrintHTML = (o: Order) => {
-    // Calculate 18% GST on subtotal
-    const gstAmount = Math.round(o.subtotal * 0.18 * 100) / 100;
-    const computedTotal = o.subtotal + gstAmount + o.shippingFee;
-
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -364,17 +360,16 @@ export default function AdminOrderDetailsPage() {
     <div class="box">
     <div style="display:flex;justify-content:space-between"><div class="small">Subtotal</div><div>₹${formatNumber(o.subtotal)}</div></div>
     <div style="display:flex;justify-content:space-between;margin-top:6px;"><div class="small">Shipping</div><div>${o.shippingFee === 0 ? 'FREE' : '₹' + formatNumber(o.shippingFee)}</div></div>
-    <div style="display:flex;justify-content:space-between;margin-top:6px;"><div class="small">GST (18%)</div><div>₹${formatNumber(gstAmount)}</div></div>
     <hr style="border:none;border-top:1px dashed #E6EEF8;margin:10px 0;">
     
     <!-- Total Amount (bold, large) -->
     <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-bottom:2px;">
       <div>Total Amount</div>
-      <div>₹${formatNumber(computedTotal)}</div>
+      <div>₹${formatNumber(o.total)}</div>
     </div>
     <!-- Small note -->
     <div style="display:flex;justify-content:flex-end;font-size:12px;color:var(--muted);">
-      Inclusive of 18% GST
+      Inclusive of all taxes with discount
     </div>
     </div>
    </div>
@@ -463,7 +458,7 @@ export default function AdminOrderDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20 md:pt-24">
+      <div className="min-h-screen bg-gray-50 pt-20 md:pt-15">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 md:py-12">
           <div className="text-center">
             <RefreshCw className="w-10 h-10 md:w-12 md:h-12 text-purple-600 animate-spin mx-auto mb-3 md:mb-4" />
@@ -871,10 +866,10 @@ export default function AdminOrderDetailsPage() {
                       <span className="font-medium text-sm">{order.shippingFee === 0 ? 'FREE' : `₹${order.shippingFee.toLocaleString()}`}</span>
                     </div>
                     
-                    <div className="flex justify-between">
+                    {/* <div className="flex justify-between">
                       <span className="text-gray-600 text-sm">Inclusive of all taxes</span>
                       <span className="font-medium text-sm">₹{order.tax.toLocaleString()}</span>
-                    </div>
+                    </div> */}
                     
                     <div className="border-t border-gray-200 pt-2">
                       <div className="flex justify-between">
@@ -992,10 +987,10 @@ export default function AdminOrderDetailsPage() {
                     <span className="font-medium">{order.shippingFee === 0 ? 'FREE' : `₹${order.shippingFee.toLocaleString()}`}</span>
                   </div>
                   
-                  <div className="flex justify-between">
+                  {/* <div className="flex justify-between">
                     <span className="text-gray-600">Inclusive of all taxes</span>
                     <span className="font-medium">₹{order.tax.toLocaleString()}</span>
-                  </div>
+                  </div> */}
                   
                   <div className="border-t border-gray-200 pt-3">
                     <div className="flex justify-between">
