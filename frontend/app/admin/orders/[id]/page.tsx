@@ -369,7 +369,7 @@ export default function AdminOrderDetailsPage() {
     </div>
     <!-- Small note -->
     <div style="display:flex;justify-content:flex-end;font-size:12px;color:var(--muted);">
-      Inclusive of all taxes with discount
+      Inclusive of all taxes 
     </div>
     </div>
    </div>
@@ -878,7 +878,7 @@ export default function AdminOrderDetailsPage() {
                           <span className="text-lg font-bold text-gray-900">
                             ₹{order.total.toLocaleString()}
                           </span>
-                          <p className="text-xs text-gray-500">Inclusive of all taxes with discount</p>
+                          <p className="text-xs text-gray-500">Inclusive of all taxes </p>
                         </div>
                       </div>
                     </div>
@@ -999,7 +999,7 @@ export default function AdminOrderDetailsPage() {
                         <span className="text-2xl font-bold text-gray-900">
                           ₹{order.total.toLocaleString()}
                         </span>
-                        <p className="text-xs text-gray-500">Inclusive of all taxes with discount</p>
+                        <p className="text-xs text-gray-500">Inclusive of all taxes</p>
                       </div>
                     </div>
                   </div>

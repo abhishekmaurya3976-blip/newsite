@@ -432,7 +432,7 @@ export default function OrderDetailsPage() {
           <hr style="border:none;border-top:1px dashed #E6EEF8;margin:10px 0;">
           <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;"><div>Total</div><div>₹${formatNumber(o.total)}</div></div>
           <div style="display:flex;justify-content:flex-end;font-size:12px;color:var(--muted);">
-            Inclusive of all taxes with discount
+            Inclusive of all taxes 
           </div>
         </div>
       </div>
